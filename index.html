@@ -286,6 +286,88 @@
 
 
   
+    <article id="post-englishname" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+  
+  
+    <h1 itemprop="name">
+	
+	  <a class="article-title" href="/2020/04/22/englishname/" target="_blank">hexo部署后文章图片不显示的问题</a>
+  
+    </h1>
+  
+
+
+  
+  
+<a href="/2020/04/22/englishname/" class="archive-article-date">
+        <time datetime="2020-04-22T15:47:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-04-22</time>
+</a>
+
+  
+  
+    
+
+  
+  </header>
+  
+  <div class="article-entry" itemprop="articleBody">
+    
+    <p>hexo本地生成后能正常显示，部署后部分图片不显示，经过调试发现，在图片为<code>全英文命名</code>时，如<code>bfs.gif</code>，github会出现404错误，改用数字命名后，如<code>1.gif</code>，即可正常显示。其他命名方式未测试。</p>
+
+    
+
+    
+
+    
+
+  </div>
+  <div class="article-info article-info-index">
+    
+    
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">随笔</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+    
+
+    
+
+    
+    <div class="clearfix"></div>
+  </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-Maze" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -315,8 +397,8 @@
   
   <div class="article-entry" itemprop="articleBody">
     
-    <p>该程序中迷宫以左上角为起点，以右下角为终点，起点至终点只有一条正确的路径，所以实质上是树的遍历</p>
-<h4 id="深度优先搜索"><a href="#深度优先搜索" class="headerlink" title="深度优先搜索"></a>深度优先搜索</h4><p>   对于下面的迷宫<code>（树）</code>而言，DFS方法首先从根节点（起点）开始，以8<code>上</code>4<code>右</code>2<code>下</code>1<code>左</code>的顺序，从8开始往下搜索节点，向某个方向一直走下去<code>（将节点压入栈）</code>，不能走就切换方向，所有方向都不能走了就回到上一层位置<code>（节点从栈中弹出）</code>，直至找到指定节点（终点）<br><img src="/img/dfs.gif" alt="深度优先搜索"><br><img src="/img/maze/6.gif" alt="深度优先搜索"><br><img src="/img/fileinfloder/2.png" alt="none"></p>
+    <p>该程序中迷宫以<code>左上角为起点</code>，以<code>右下角为终点</code>，起点至终点只有一条正确的路径，所以实质上是树的遍历</p>
+<h4 id="深度优先搜索"><a href="#深度优先搜索" class="headerlink" title="深度优先搜索"></a>深度优先搜索</h4><p>   对于下面的迷宫<code>（树）</code>而言，DFS方法首先从根节点（起点）开始，以8<code>上</code>4<code>右</code>2<code>下</code>1<code>左</code>的顺序，从8开始往下搜索节点，向某个方向一直走下去<code>（将节点压入栈）</code>，不能走就切换方向，所有方向都不能走了就回到上一层位置<code>（节点从栈中弹出）</code>，直至找到指定节点（终点）<br><img src="/img/maze/2.gif" alt="深度优先搜索"></p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;DFS</span><br><span class="line">       public class DFSDelayPathShow : PathShow</span><br><span class="line">       &#123;</span><br><span class="line">           private static Queue&lt;Point&gt; DFSpath &#x3D; new Queue&lt;Point&gt;();    &#x2F;&#x2F;保存深度搜索的过程数组</span><br><span class="line"></span><br><span class="line">           public void ShowMap()</span><br><span class="line">           &#123;</span><br><span class="line">               Thread td &#x3D; new Thread(new ThreadStart(ShowMap2));</span><br><span class="line">               td.IsBackground &#x3D; true;</span><br><span class="line">               td.Start();</span><br><span class="line">               &#x2F;&#x2F;td.Join();</span><br><span class="line">           &#125;</span><br><span class="line"></span><br><span class="line">           public void ShowMap2()</span><br><span class="line">           &#123;</span><br><span class="line">               while (MapCreateProcess.Count !&#x3D; 0)</span><br><span class="line">               &#123;</span><br><span class="line">                   var p &#x3D; MapCreateProcess.Dequeue();</span><br><span class="line">                   var x &#x3D; numMap[p.X, p.Y];</span><br><span class="line">                   map[p.X, p.Y].Image &#x3D; PathImageList[numMap[p.X, p.Y]];</span><br><span class="line">                   Thread.Sleep(isShowSpeed);</span><br><span class="line">                   map[p.X, p.Y].Image &#x3D; ImageList[numMap[p.X, p.Y]];</span><br><span class="line">                   Thread.Sleep(isShowSpeed);</span><br><span class="line">               &#125;</span><br><span class="line">           &#125;</span><br><span class="line"></span><br><span class="line">           &#x2F;&#x2F;寻路</span><br><span class="line">           public override void FindLine(int x, int y)</span><br><span class="line">           &#123;</span><br><span class="line">               for (int i &#x3D; 0; i &lt;&#x3D; 3; i++)</span><br><span class="line">               &#123;</span><br><span class="line">                   int m &#x3D; x;</span><br><span class="line">                   int n &#x3D; y;</span><br><span class="line">                   int direct &#x3D; 0;</span><br><span class="line">                   switch (i)</span><br><span class="line">                   &#123;</span><br><span class="line">                       case 0:</span><br><span class="line">                           m--;</span><br><span class="line">                           direct &#x3D; 8;</span><br><span class="line">                           break;</span><br><span class="line">                       case 1:</span><br><span class="line">                           n++;</span><br><span class="line">                           direct &#x3D; 4;</span><br><span class="line">                           break;</span><br><span class="line">                       case 2:</span><br><span class="line">                           m++;</span><br><span class="line">                           direct &#x3D; 2;</span><br><span class="line">                           break;</span><br><span class="line">                       case 3:</span><br><span class="line">                           n--;</span><br><span class="line">                           direct &#x3D; 1;</span><br><span class="line">                           break;</span><br><span class="line">                   &#125;</span><br><span class="line">                   if (m &lt; height &amp;&amp; n &lt; width &amp;&amp; m &gt;&#x3D; 0 &amp;&amp; n &gt;&#x3D; 0 &amp;&amp; (numMap[x, y] &amp; direct) &#x3D;&#x3D; 0)</span><br><span class="line">                   &#123;</span><br><span class="line">                       Point p &#x3D; new Point(x, y, path[x, y]);</span><br><span class="line">                       DFSpath.Enqueue(p);</span><br><span class="line">                   &#125;</span><br><span class="line">                   if (m &lt; height &amp;&amp; n &lt; width &amp;&amp; m &gt;&#x3D; 0 &amp;&amp; n &gt;&#x3D; 0 &amp;&amp; (numMap[x, y] &amp; direct) !&#x3D; 0 &amp;&amp; path[m, n] &#x3D;&#x3D; 0 &amp;&amp; !isCompleted)</span><br><span class="line">                   &#123;</span><br><span class="line">                       path[x, y] &#x3D; 1;</span><br><span class="line">                       Point p &#x3D; new Point(x, y, path[x, y]);</span><br><span class="line">                       DFSpath.Enqueue(p);</span><br><span class="line">                       Pathfinding(m, n);</span><br><span class="line">                       if (isCompleted)</span><br><span class="line">                           return;</span><br><span class="line">                       path[x, y] &#x3D; 0;</span><br><span class="line">                       p &#x3D; new Point(x, y, path[x, y]);</span><br><span class="line">                       DFSpath.Enqueue(p);</span><br><span class="line">                   &#125; </span><br><span class="line">               &#125;</span><br><span class="line">           &#125;</span><br><span class="line"></span><br><span class="line">           public override void ShowLine()</span><br><span class="line">           &#123;</span><br><span class="line">               isCompleted &#x3D; true;</span><br><span class="line">               Thread td &#x3D; new Thread(new ThreadStart(DelayShow));</span><br><span class="line">               td.IsBackground &#x3D; true;</span><br><span class="line">               td.Start();</span><br><span class="line">              &#x2F;&#x2F; td.Join();</span><br><span class="line">           &#125;</span><br><span class="line">           public void DelayShow()</span><br><span class="line">           &#123;</span><br><span class="line">               &#x2F;&#x2F;DFSInfo.Invoke(setCallBack, DFSpath.Count.ToString());</span><br><span class="line">               while (DFSpath.Count !&#x3D; 0)</span><br><span class="line">               &#123;</span><br><span class="line">                   var p &#x3D; DFSpath.Dequeue();          </span><br><span class="line">                   map[p.X, p.Y].Image &#x3D; PathImageList[numMap[p.X, p.Y]];</span><br><span class="line">                   Thread.Sleep(isShowSpeed&#x2F;2);</span><br><span class="line">                   map[p.X, p.Y].Image &#x3D; LineImageList[numMap[p.X, p.Y]];</span><br><span class="line">                   Thread.Sleep(isShowSpeed&#x2F;2);</span><br><span class="line">               &#125;</span><br><span class="line">               isCompleted &#x3D; false;</span><br><span class="line"></span><br><span class="line">           &#125;</span><br><span class="line">       &#125;</span><br></pre></td></tr></table></figure>
     
     <a class="article-more-a" href="/2020/04/22/Maze/#more">查看全文 >></a>
@@ -414,9 +496,9 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">        &#x2F;&#x2F;&#x2F; 深度优先搜索获取所有文件夹及子文件夹 </span><br><span class="line">        &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">        &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;FolderPath&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">        private void GetSubFolders(string FolderPath)</span><br><span class="line">        &#123;</span><br><span class="line">            try</span><br><span class="line">            &#123;</span><br><span class="line">                DirectoryInfo dicInfo &#x3D; new DirectoryInfo(FolderPath);</span><br><span class="line">                DirectoryInfo[] dirs &#x3D; dicInfo.GetDirectories();</span><br><span class="line">                if (dirs.Count() &gt; 0)</span><br><span class="line">                &#123;</span><br><span class="line">                    foreach (var dir in dirs)</span><br><span class="line">                    &#123;</span><br><span class="line">                        GetSubFolders(dir.FullName);&#x2F;&#x2F;递归搜索</span><br><span class="line">                        AllFolder.Add(dir.FullName);</span><br><span class="line">                        Config.messageClass.MessageSend(new MessageEventArgs(&quot;搜索:&quot; + dir.FullName, MessageType.FolderPath));</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            catch &#123; &#125;;</span><br><span class="line">            starttime &#x3D; Environment.TickCount;</span><br><span class="line">            fMaxProgress &#x3D; 1;</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
 <p>再由<code>Linq</code>获取全部的指定拓展名的文件</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">        &#x2F;&#x2F;&#x2F; 获取所有指定类型的文件</span><br><span class="line">        &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">        private void GetAppointTypeFile()</span><br><span class="line">        &#123;</span><br><span class="line">            </span><br><span class="line">            &#x2F;&#x2F;var pattern &#x3D; sTypeFile();</span><br><span class="line">            foreach (var folder in AllFolder)</span><br><span class="line">            &#123;</span><br><span class="line">                ifolderIndex++;</span><br><span class="line">                try</span><br><span class="line">                &#123;</span><br><span class="line">                    DirectoryInfo dicInfo &#x3D; new DirectoryInfo(folder);</span><br><span class="line">                    FileInfo[] dirs;</span><br><span class="line"></span><br><span class="line">                    if (lbFileType.Items.Count &#x3D;&#x3D; 0)</span><br><span class="line">                    &#123;                      </span><br><span class="line">                        dirs &#x3D; new string[] &#123; &quot;*.*&quot; &#125;</span><br><span class="line">                        .SelectMany(i &#x3D;&gt; dicInfo</span><br><span class="line">                        .GetFiles(i, SearchOption.TopDirectoryOnly))</span><br><span class="line">                        .Distinct().ToArray();</span><br><span class="line">                    &#125;</span><br><span class="line">                    else</span><br><span class="line">                        dirs &#x3D; TypeFile()</span><br><span class="line">                        .SelectMany(i &#x3D;&gt; dicInfo</span><br><span class="line">                        .GetFiles(i, SearchOption.TopDirectoryOnly))</span><br><span class="line">                        .Distinct().ToArray();</span><br><span class="line">                    idirsCount &#x3D; dirs.Count();</span><br><span class="line">                    idirCount &#x3D; 0;</span><br><span class="line">                    foreach (var dir in dirs)</span><br><span class="line">                    &#123;</span><br><span class="line">                        idirCount++;</span><br><span class="line">                        FileDir.Add(dir.FullName, dir.Name);</span><br><span class="line">                        TotalSize +&#x3D; dir.Length &#x2F; 1024f &#x2F; 1024f;&#x2F;&#x2F;计算文件大小</span><br><span class="line">                        Config.messageClass.MessageSend(new MessageEventArgs(&quot;搜索:&quot; + dir.FullName, MessageType.FolderPath));</span><br><span class="line">                        Config.messageClass.MessageSend(new MessageEventArgs(fProgress(icount), MessageType.Progress));</span><br><span class="line">                        isearch++;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                catch &#123; &#125;;</span><br><span class="line">            &#125;</span><br><span class="line">            isSearchFinished &#x3D; true;</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
-<hr>
-<h1 id="以下为简易的使用方法"><a href="#以下为简易的使用方法" class="headerlink" title="以下为简易的使用方法"></a>以下为简易的使用方法</h1><p>首先选择要提取的文件夹路径和输出文件夹路径<br><img src="/img/maze/bfs.gif" alt="广度优先搜索"><br><img src="/img/fileinfloder/2.png" alt="none"><br>选择<code>添加类型</code>选择所需要的文件拓展名，或以<code>拖拽</code>的方式将文件拖入<code>左侧空白方框</code>中（暂不支持人工输入拓展名等方法）<br><img src="/img/fileinfloder/1.png" alt="none"><br><code>左侧空白方框</code>为空时，为提取<code>所有文件</code><br><img src="/img/fileinfloder/3.png" alt="none"><br>点击运行并等待结束<br><img src="/img/fileinfloder/4.png" alt="none"></p>
-<h2 id="使用时尽量不要将输入输出文件夹路径设置为一致，可能会导致未知的错误（未发生）"><a href="#使用时尽量不要将输入输出文件夹路径设置为一致，可能会导致未知的错误（未发生）" class="headerlink" title="使用时尽量不要将输入输出文件夹路径设置为一致，可能会导致未知的错误（未发生）"></a>使用时尽量不要将输入输出文件夹路径设置为一致，可能会导致未知的错误（未发生）</h2>
+    
+    <a class="article-more-a" href="/2019/03/25/FileinFolder/#more">查看全文 >></a>
+    
     
 
     
