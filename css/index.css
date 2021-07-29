@@ -3380,8 +3380,8 @@ li.categoryBar-list-item {
 }
 #page-header #site_social_icons .social-icon {
   margin: 0 0.5rem;
-  color: var(--light-grey);
-  text-shadow: 0.1rem 0.1rem 0.2rem rgba(0,0,0,0.15);
+  color: transparent;
+  text-shadow: 0.1rem 0.1rem 0.2rem rgba(0,0,0,0);
   font-size: 1.43em;
   cursor: pointer;
 }
