@@ -149,6 +149,11 @@ button:hover {
     cursor: url(https://cdn.jsdelivr.net/gh/honjun/cdn@1.6/img/cursor/ayuda.cur), auto;
 }
 
+@font-face{
+    font-family: 'OzCaramel';
+    src: url(source/fonts/OzCaramel.ttf);
+}
+
 /*i��ǩ*/
 
 i:hover {
