@@ -3177,19 +3177,19 @@ span.categoryBar-list-count::after {
   right: -100%;
 }
 li.categoryBar-list-item:nth-child(1) {
-  background: url('https://cdn.jsdelivr.net/npm/akilar-candyassets/image/cover1.webp');
+  background: url('/img/rtx.jpeg');
 }
 li.categoryBar-list-item:nth-child(2) {
-  background: url('https://cdn.jsdelivr.net/npm/akilar-candyassets/image/cover5.webp');
+  background: url('/img/render.jpg');
 }
 li.categoryBar-list-item:nth-child(3) {
   background: url('https://cdn.jsdelivr.net/npm/akilar-candyassets/image/cover6.webp');
 }
 li.categoryBar-list-item:nth-child(1)>span::after {
-  content: '渲染' !important;
+  content: '光线追踪' !important;
 }
 li.categoryBar-list-item:nth-child(2)>span::after {
-  content: '光线追踪' !important;
+  content: '渲染' !important;
 }
 li.categoryBar-list-item:nth-child(3)>span::after {
   content: '杂谈教程' !important;
@@ -3343,7 +3343,7 @@ li.categoryBar-list-item {
 #page-header #site-subtitle,
 #page-header #scroll-down .scroll-down-effects {
   text-align: center;
-  text-shadow: 0.1rem 0.1rem 0.2rem rgba(0,0,0,0.15);
+  text-shadow: 0.1rem 0.1rem 0.12rem rgba(0,0,0,0.9);
   line-height: 1.5;
 }
 #page-header #site-title {
@@ -3654,11 +3654,12 @@ li.categoryBar-list-item {
   color: var(--white);
 }
 #nav #site-name {
-  text-shadow: 0.1rem 0.1rem 0.2rem rgba(0,0,0,0.15);
+  text-shadow: 0.1rem 0.1rem 0.1rem rgba(0,0,0,0.25);
   font-weight: bold;
   cursor: pointer;
 }
 #nav .menus_items {
+  text-shadow: 0.1rem 0.1rem 0.15rem rgba(0,0,0,0.75);
   display: inline;
 }
 #nav .menus_items .menus_item {
