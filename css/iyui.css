@@ -240,7 +240,7 @@ body {
 }
 
 #site-title{position:relative;color:#fff;mix-blend-mode:lighten}
-#site-title:after,#site-title:before{content:"GumYi的博客";position:absolute;top:0;width:100%;background:rgba(0,0,0,0);clip:rect(0,0,0,0)}
+#site-title:after,#site-title:before{content:"Gumyi的博客";position:absolute;top:0;width:100%;background:rgba(0,0,0,0);clip:rect(0,0,0,0)}
 #site-title:before{left:-1px;text-shadow:1px 0 #ff3f1a}
 #site-title:after{left:1px;text-shadow:-1px 0 #00a7e0}
 #site-title:hover:before{text-shadow:4px 0 #ff3f1a;animation:glitch-loop-1 .8s infinite ease-in-out alternate-reverse}
