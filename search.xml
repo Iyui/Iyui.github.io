@@ -332,4 +332,54 @@ ${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_
         <tag>Render</tag>
       </tags>
   </entry>
+  <entry>
+    <title>C++中的引用</title>
+    <url>/2021/09/21/cpp_2_reference/</url>
+    <content><![CDATA[]]></content>
+      <categories>
+        <category>c++</category>
+      </categories>
+      <tags>
+        <tag>c++</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>C++中的重载</title>
+    <url>/2021/09/21/cpp_3_overload/</url>
+    <content><![CDATA[<p>有空再写</p>
+]]></content>
+      <categories>
+        <category>c++</category>
+      </categories>
+      <tags>
+        <tag>c++</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>C++中的继承</title>
+    <url>/2021/09/22/cpp_4_inheritance/</url>
+    <content><![CDATA[<h1 id="基类和派生类"><a href="#基类和派生类" class="headerlink" title="基类和派生类"></a>基类和派生类</h1><p>把在原有类的基础上建立新类并且添加新特征的过程叫做<code>类的派生</code>,把原有的类叫做<code>基类</code>或<code>父类</code>,把新建立的类叫做<code>派生类</code>或<code>子类</code></p>
+<p>只有一个基类的继承叫<code>单一继承</code>,有多个基类的继承叫<code>多重继承</code></p>
+<p>当声明一个派生类时,可通过在类的名字后面加一个<code>:</code>来表示是从哪个类派生出来</p>
+<p>单一继承形式:<br><code>关键字Class 派生类名 : 派生类型 基类名</code></p>
+<p>多重继承形式:<br><code>class 类名:访问权限 类名1,访问权限 类名2,...</code></p>
+<p>派生类的构造函数<br><code>派生类名::派生类名(参数):基类名(参数),基类2名(参数),...</code></p>
+<h2 id="访问权限"><a href="#访问权限" class="headerlink" title="访问权限"></a>访问权限</h2><h3 id="公有派生"><a href="#公有派生" class="headerlink" title="公有派生"></a>公有派生</h3><ul>
+<li>基类的公有成员(public)在派生类中仍然是公有的</li>
+<li>公有派生的前提下,基类的保护成员(protect)在派生类中仍然是被保护的</li>
+<li>公有派生的私有成员(private)在派生类中无法访问</li>
+<li>派生的对象可以赋给基类的对象<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">father a;</span><br><span class="line">son b;</span><br><span class="line">a = b;</span><br></pre></td></tr></table></figure></li>
+<li>派生类的对象可以初始化基类的引用<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">son b;</span><br><span class="line">father &amp;aa = b;</span><br></pre></td></tr></table></figure></li>
+<li>派生类可以将对象的地址赋值给基类的指针<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">son b;</span><br><span class="line">father *aa=&amp;b;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="私有派生"><a href="#私有派生" class="headerlink" title="私有派生"></a>私有派生</h3><p>略</p>
+]]></content>
+      <categories>
+        <category>c++</category>
+      </categories>
+      <tags>
+        <tag>c++</tag>
+      </tags>
+  </entry>
 </search>
