@@ -1,23 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>基于CUDA的光线追踪器[1]</title>
-    <url>/2021/08/15/CUDA_RayTracer_1/</url>
-    <content><![CDATA[<p>&emsp;&emsp;绝大部分的光线追踪器教程以CPU实现为主,而以GPU实现的教程甚少,对于图形学和GPU并行编程在这之前没有接触过或接触不久的初学者(比如我)来说,虽掌握了一些理论知识,但在使用代码实现的时候非常困难,该文章的主要目的为笔者的学习记录,代码中尽可能地对CUDA并行编程部分写了注释,也希望今后能对其他学习者提供一些帮助,在配置好CUDA环境的情况下可以直接运行代码<br>&emsp;&emsp;本文章中的光线追踪部分参考<a href="https://raytracing.github.io/books/RayTracingInOneWeekend.html">&lt;&lt; Ray Tracing in One Weekend &gt;&gt;</a><br>&emsp;&emsp;CUDA的基础知识则来自&lt;&lt; GPU高性能编程CUDA实战 &gt;&gt;一书<br>&emsp;&emsp;开发环境:GTX 1050 &amp;&amp; CUDA 11.4</p>
-<hr>
-<p>&emsp;&emsp;首先简单地使用CUDA渲染出一张图片</p>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;cuda_runtime.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;device_launch_parameters.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;cpu_bitmap.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;book.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;cuda.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DIM 256</span></span><br><span class="line"></span><br><span class="line"><span class="function">__device__ <span class="keyword">void</span> <span class="title">SetColor</span><span class="params">(<span class="keyword">int</span> x, <span class="keyword">int</span> y,<span class="keyword">int</span> &amp;ir,<span class="keyword">int</span> &amp;ig,<span class="keyword">int</span> &amp;ib)</span> </span>&#123;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">double</span> r = (<span class="keyword">double</span>)x / (DIM - <span class="number">1</span>);</span><br><span class="line">	<span class="keyword">double</span> g = (<span class="keyword">double</span>)y / (DIM - <span class="number">1</span>);</span><br><span class="line">	<span class="keyword">double</span> b = <span class="number">0.25</span>;</span><br><span class="line"></span><br><span class="line">	ir = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * r);</span><br><span class="line">	ig = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * g);</span><br><span class="line">	ib = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * b);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="keyword">void</span> <span class="title">kernel</span><span class="params">(<span class="keyword">unsigned</span> <span class="keyword">char</span>* ptr)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 将threadIdx/BlockIdx映射到像素位置</span></span><br><span class="line">    <span class="keyword">int</span> x = blockIdx.x;</span><br><span class="line">    <span class="keyword">int</span> y = blockIdx.y;</span><br><span class="line">	<span class="keyword">int</span> offset = x + y * gridDim.x;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">int</span> r = <span class="number">0</span>;</span><br><span class="line">	<span class="keyword">int</span> g = <span class="number">0</span>;</span><br><span class="line">	<span class="keyword">int</span> b = <span class="number">0</span>;</span><br><span class="line">	<span class="built_in">SetColor</span>(x, y, r, g, b);</span><br><span class="line"></span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">0</span>] = r;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">1</span>] = g;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">2</span>] = b;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">3</span>] = <span class="number">255</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">DataBlock</span> &#123;</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">char</span>* dev_bitmap;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">void</span>)</span> </span>&#123;</span><br><span class="line">	DataBlock   data;</span><br><span class="line">	<span class="function">CPUBitmap <span class="title">bitmap</span><span class="params">(DIM, DIM)</span></span>;<span class="comment">//创建一个DIM*DIM大小的位图图像</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">char</span> *dev_bitmap;<span class="comment">//接下来将在GPU上执行计算 因此在代码中声明一个指针用来保存设备上数据的副本</span></span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaMalloc</span>((<span class="keyword">void</span>**)&amp;dev_bitmap,</span><br><span class="line">		bitmap.<span class="built_in">image_size</span>()));<span class="comment">//为了保存数据,需要cudaMalloc来分配内存</span></span><br><span class="line">	data.dev_bitmap = dev_bitmap;</span><br><span class="line">	<span class="function">dim3 <span class="title">grid</span><span class="params">(DIM, DIM)</span></span>;<span class="comment">//由于每个点的计算与其他点的计算都是相互独立的,</span></span><br><span class="line">						<span class="comment">//因此可以为每个需要计算的点都执行该函数的一个副本</span></span><br><span class="line">						<span class="comment">//在某些情况下使用二维索引会带来一定的帮助,显然在二维空间中计算函数值正属于这种情况</span></span><br><span class="line">						<span class="comment">//因此此处声明了一个二维的线程格</span></span><br><span class="line">	kernel &lt;&lt; &lt;grid, <span class="number">1</span> &gt;&gt; &gt; (dev_bitmap);<span class="comment">//将dim3变量grid传递给CUDA运行</span></span><br><span class="line">										<span class="comment">//之前分配的指针传递给kernel来保存计算结果</span></span><br><span class="line">	<span class="comment">//执行完kernel之后,设备上会生成计算结果,我们需要将这些结果复制回主机</span></span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaMemcpy</span>(bitmap.<span class="built_in">get_ptr</span>(), </span><br><span class="line">				dev_bitmap,</span><br><span class="line">				bitmap.<span class="built_in">image_size</span>(),</span><br><span class="line">				cudaMemcpyDeviceToHost));</span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaFree</span>(dev_bitmap));</span><br><span class="line">	bitmap.<span class="built_in">display_and_exit</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p><img src="/img/CUDA/CUDA_Raytracer_1.png" alt=""></p>
-]]></content>
-      <categories>
-        <category>RayTracing</category>
-      </categories>
-      <tags>
-        <tag>CUDA</tag>
-        <tag>RayTracing</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>坐标系统与相机</title>
     <url>/2021/09/23/Camera/</url>
     <content><![CDATA[<h1 id="坐标系统"><a href="#坐标系统" class="headerlink" title="坐标系统"></a>坐标系统</h1><p>将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易</p>
@@ -59,28 +42,57 @@ $V_{clip} = M_{projection} \cdot M_{view} \cdot M_{model} \cdot V_{local}$
       </tags>
   </entry>
   <entry>
-    <title>交换链和深度缓冲</title>
-    <url>/2021/09/19/DirectX11_3/</url>
-    <content><![CDATA[<h1 id="交换链和页面翻转"><a href="#交换链和页面翻转" class="headerlink" title="交换链和页面翻转"></a>交换链和页面翻转</h1><p>为了避免在动画中出现闪烁，最好的做法是在一个<strong>离屏（off-screen）</strong>纹理中执行所有的动画帧绘制工作，这个离屏纹理称为<strong>后台缓冲区（back buffer）</strong>。当我们在后台缓冲区中完成给定帧的绘制工作后，便可以将后台缓冲区作为一个完整的帧显示在屏幕上；使用这种方法，用户不会察觉到帧的绘制过程，只会看到完整的帧。<br>从理论上讲，将一帧显示到屏幕上所消耗的时间小于屏幕的垂直刷新时间。</p>
-<div class="note info modern"><p>刷新频率分为垂直刷新率和水平刷新率，垂直刷新率表示屏幕的图象每秒种重绘多少次。也就是指每秒钟屏幕刷新的次数，以Hz（赫兹）为单位。水平刷新率又称行频，它表示显示器从左到右绘制一条水平线所用的时间，以kHz为单位。</p>
-</div>
-<p>硬件会自动维护两个内置的纹理缓冲区来实现这一功能，这两个缓冲区分别称为<strong>前台缓冲区（front buffer）</strong>和<strong>后台缓冲区</strong>。前台缓冲区存储了当前显示在屏幕上的图像数据，而动画的下一帧会在后台缓冲区中执行绘制。当后台缓冲区的绘图工作完成之后，前后两个缓冲区的作用会发生翻转：后台缓冲区会变为前台缓冲区， 而前台缓冲区会变为后台缓冲区，为下一帧的绘制工作提前做准备。我们将前后缓冲区功能互换的行为称做<strong>呈现（presenting）</strong>。</p>
-<p>前后缓冲区形成了一个<strong>交换链（swap chain）</strong>。在Direct3D中，交换链由IDXGISwapChain接口表示。该接口保存了前后缓冲区纹理，并提供了用于调整缓冲区尺寸的方法（IDXGISwapChain::ResizeBuffers）和呈现方法（IDXGISwapChain::Present）。</p>
-<p>使用（前后）两个缓冲区称为<strong>双缓冲（double buffering）</strong></p>
+    <title>Matrix algebra in CG</title>
+    <url>/2021/09/18/DirectX11_2/</url>
+    <content><![CDATA[<h1 id="矩阵加法"><a href="#矩阵加法" class="headerlink" title="矩阵加法"></a>矩阵加法</h1><p>略</p>
 <hr>
-<h1 id="深度缓冲区"><a href="#深度缓冲区" class="headerlink" title="深度缓冲区"></a>深度缓冲区</h1><p>常见的深度值范围在0.0到1.0之间，其中0.0表示离观察者最近的物体，1.0表示离观察者最远的物体。</p>
-<p>深度缓冲区中的每个元素与后台缓冲区中的每个像素一一对应（即，后台缓冲区的第ij个元素对应于深度缓冲区的第ij个元素）。所以，当后台缓冲区的分辨率为1280×1024时，在深度缓冲区中有1280×1024个深度元素。</p>
-<div class="note info modern"><p>深度缓存（depth buffering）== Z缓存（z-buffering）</p>
-</div>
+<h1 id="矩阵乘法"><a href="#矩阵乘法" class="headerlink" title="矩阵乘法"></a>矩阵乘法</h1><p>略</p>
 <hr>
-<h1 id="多重采样"><a href="#多重采样" class="headerlink" title="多重采样"></a>多重采样</h1><p>当无法提高显示器分辨率或分辨率不够高时，我们可以使用<strong>抗锯齿（antialiasing）</strong>技术。其中的一种技术叫做<strong>超级采样（supersampling）</strong>，它把后台缓冲和深度缓冲的大小提高到屏幕分辨率的4倍。3D场景会以这个更大的分辨率渲染到后台缓存中，当在屏幕上呈现后台缓冲时，后台缓冲会将4个像素的颜色取平均值后得到一个像素的最终颜色。</p>
-<p>Direct3D支持另一种称为多重采样（multisampling）的抗锯齿技术，它通过对一个像素的子像素进行采样计算出该像素的最终颜色，比超级采样节省资源。假如我们使用的是4X多重采样（每个像素采样4个邻接像素），多重采样仍然会使用屏幕分辨率4倍大小的后台缓冲和深度缓冲，但是，不像超级采样那样计算每个子像素的颜色，而是只计算像素中心颜色一次，然后基于子像素的可见性（基于子像素的深度/模板测试）和范围（子像素中心在多边形之外还是之内）共享颜色信息。</p>
+<h1 id="转置矩阵"><a href="#转置矩阵" class="headerlink" title="转置矩阵"></a>转置矩阵</h1><p>对一个矩阵的行和列进行互换，即可得到该矩阵的转置（transpose）矩阵。一个m×n矩阵的转置矩阵是一个n×m矩阵。我们将矩阵M的转置矩阵记作M<sup>T</sup>。</p>
+<p>矩阵转置有以下有用的特点：</p>
+<p>1．(A+B)<sup>T</sup>＝A<sup>T</sup>+B<sup>T</sup></p>
+<p>2．(cA)<sup>T</sup>=cA<sup>T</sup></p>
+<p>3．(AB)<sup>T</sup>=B<sup>T</sup>A<sup>T</sup></p>
+<p>4．(A<sup>T</sup>)<sup>T</sup>=A</p>
+<p>5．(A-1)<sup>T</sup>=(A<sup>T</sup>)-1</p>
+<hr>
+<h1 id="单位矩阵"><a href="#单位矩阵" class="headerlink" title="单位矩阵"></a>单位矩阵</h1><p>单位矩阵是一个正方形矩阵，它除了对角线上的元素为1外，其他元素均为0。</p>
+<hr>
+<h1 id="行列式"><a href="#行列式" class="headerlink" title="行列式"></a>行列式</h1><p>略</p>
+<hr>
+<h1 id="伴随矩阵"><a href="#伴随矩阵" class="headerlink" title="伴随矩阵"></a>伴随矩阵</h1><p>略</p>
+<hr>
+<h1 id="逆矩阵"><a href="#逆矩阵" class="headerlink" title="逆矩阵"></a>逆矩阵</h1><p>矩阵代数没定义除法运算，但是它定义了一种乘法的逆（inverse）运算。下面的列表总结了有关逆运算的要点：</p>
+<p>1．只有正方形矩阵能做逆运算；所以，当我们说求逆矩阵时是假设我们正在处理的是一个正方形矩阵。</p>
+<p>2．一个n×n矩阵M的逆矩阵仍然是一个n×n矩阵，记作M<sup>-1</sup>。</p>
+<p>3．不是所有的正方形矩阵都有逆矩阵。有逆矩阵的正方形矩阵称为可逆（invertible）矩阵，没有逆矩阵的称为单调（singular）矩阵。</p>
+<p>4．如果存在逆矩阵，则该逆矩阵是唯一的。</p>
+<p>5．将一个矩阵与它的逆矩阵相乘，其结果必定为单位矩阵：MM<sup>-1</sup>=M<sup>-1</sup>M=I。注意，矩阵与它的逆矩阵的相乘次序可以互换，这是矩阵乘法中的一个特例。</p>
+<hr>
+<h1 id="变换"><a href="#变换" class="headerlink" title="变换"></a>变换</h1><p> <i class="fas fa-link" style="color:#ffb6c1"> <a href="https://www.bilibili.com/video/BV1X7411F744?p=3">GAMES101-现代计算机图形学入门-闫令琪-Lecture 03-04</a></i></p>
 ]]></content>
       <categories>
         <category>Render</category>
       </categories>
       <tags>
         <tag>Render</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>基于CUDA的光线追踪器[1]</title>
+    <url>/2021/08/15/CUDA_RayTracer_1/</url>
+    <content><![CDATA[<p>&emsp;&emsp;绝大部分的光线追踪器教程以CPU实现为主,而以GPU实现的教程甚少,对于图形学和GPU并行编程在这之前没有接触过或接触不久的初学者(比如我)来说,虽掌握了一些理论知识,但在使用代码实现的时候非常困难,该文章的主要目的为笔者的学习记录,代码中尽可能地对CUDA并行编程部分写了注释,也希望今后能对其他学习者提供一些帮助,在配置好CUDA环境的情况下可以直接运行代码<br>&emsp;&emsp;本文章中的光线追踪部分参考<a href="https://raytracing.github.io/books/RayTracingInOneWeekend.html">&lt;&lt; Ray Tracing in One Weekend &gt;&gt;</a><br>&emsp;&emsp;CUDA的基础知识则来自&lt;&lt; GPU高性能编程CUDA实战 &gt;&gt;一书<br>&emsp;&emsp;开发环境:GTX 1050 &amp;&amp; CUDA 11.4</p>
+<hr>
+<p>&emsp;&emsp;首先简单地使用CUDA渲染出一张图片</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;cuda_runtime.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;device_launch_parameters.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;cpu_bitmap.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;book.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;cuda.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DIM 256</span></span><br><span class="line"></span><br><span class="line"><span class="function">__device__ <span class="keyword">void</span> <span class="title">SetColor</span><span class="params">(<span class="keyword">int</span> x, <span class="keyword">int</span> y,<span class="keyword">int</span> &amp;ir,<span class="keyword">int</span> &amp;ig,<span class="keyword">int</span> &amp;ib)</span> </span>&#123;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">double</span> r = (<span class="keyword">double</span>)x / (DIM - <span class="number">1</span>);</span><br><span class="line">	<span class="keyword">double</span> g = (<span class="keyword">double</span>)y / (DIM - <span class="number">1</span>);</span><br><span class="line">	<span class="keyword">double</span> b = <span class="number">0.25</span>;</span><br><span class="line"></span><br><span class="line">	ir = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * r);</span><br><span class="line">	ig = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * g);</span><br><span class="line">	ib = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * b);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="keyword">void</span> <span class="title">kernel</span><span class="params">(<span class="keyword">unsigned</span> <span class="keyword">char</span>* ptr)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 将threadIdx/BlockIdx映射到像素位置</span></span><br><span class="line">    <span class="keyword">int</span> x = blockIdx.x;</span><br><span class="line">    <span class="keyword">int</span> y = blockIdx.y;</span><br><span class="line">	<span class="keyword">int</span> offset = x + y * gridDim.x;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">int</span> r = <span class="number">0</span>;</span><br><span class="line">	<span class="keyword">int</span> g = <span class="number">0</span>;</span><br><span class="line">	<span class="keyword">int</span> b = <span class="number">0</span>;</span><br><span class="line">	<span class="built_in">SetColor</span>(x, y, r, g, b);</span><br><span class="line"></span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">0</span>] = r;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">1</span>] = g;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">2</span>] = b;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">3</span>] = <span class="number">255</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">DataBlock</span> &#123;</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">char</span>* dev_bitmap;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">void</span>)</span> </span>&#123;</span><br><span class="line">	DataBlock   data;</span><br><span class="line">	<span class="function">CPUBitmap <span class="title">bitmap</span><span class="params">(DIM, DIM)</span></span>;<span class="comment">//创建一个DIM*DIM大小的位图图像</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">char</span> *dev_bitmap;<span class="comment">//接下来将在GPU上执行计算 因此在代码中声明一个指针用来保存设备上数据的副本</span></span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaMalloc</span>((<span class="keyword">void</span>**)&amp;dev_bitmap,</span><br><span class="line">		bitmap.<span class="built_in">image_size</span>()));<span class="comment">//为了保存数据,需要cudaMalloc来分配内存</span></span><br><span class="line">	data.dev_bitmap = dev_bitmap;</span><br><span class="line">	<span class="function">dim3 <span class="title">grid</span><span class="params">(DIM, DIM)</span></span>;<span class="comment">//由于每个点的计算与其他点的计算都是相互独立的,</span></span><br><span class="line">						<span class="comment">//因此可以为每个需要计算的点都执行该函数的一个副本</span></span><br><span class="line">						<span class="comment">//在某些情况下使用二维索引会带来一定的帮助,显然在二维空间中计算函数值正属于这种情况</span></span><br><span class="line">						<span class="comment">//因此此处声明了一个二维的线程格</span></span><br><span class="line">	kernel &lt;&lt; &lt;grid, <span class="number">1</span> &gt;&gt; &gt; (dev_bitmap);<span class="comment">//将dim3变量grid传递给CUDA运行</span></span><br><span class="line">										<span class="comment">//之前分配的指针传递给kernel来保存计算结果</span></span><br><span class="line">	<span class="comment">//执行完kernel之后,设备上会生成计算结果,我们需要将这些结果复制回主机</span></span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaMemcpy</span>(bitmap.<span class="built_in">get_ptr</span>(), </span><br><span class="line">				dev_bitmap,</span><br><span class="line">				bitmap.<span class="built_in">image_size</span>(),</span><br><span class="line">				cudaMemcpyDeviceToHost));</span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaFree</span>(dev_bitmap));</span><br><span class="line">	bitmap.<span class="built_in">display_and_exit</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><img src="/img/CUDA/CUDA_Raytracer_1.png" alt=""></p>
+]]></content>
+      <categories>
+        <category>RayTracing</category>
+      </categories>
+      <tags>
+        <tag>CUDA</tag>
+        <tag>RayTracing</tag>
       </tags>
   </entry>
   <entry>
@@ -166,43 +178,6 @@ ${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_
       </tags>
   </entry>
   <entry>
-    <title>Matrix algebra in CG</title>
-    <url>/2021/09/18/DirectX11_2/</url>
-    <content><![CDATA[<h1 id="矩阵加法"><a href="#矩阵加法" class="headerlink" title="矩阵加法"></a>矩阵加法</h1><p>略</p>
-<hr>
-<h1 id="矩阵乘法"><a href="#矩阵乘法" class="headerlink" title="矩阵乘法"></a>矩阵乘法</h1><p>略</p>
-<hr>
-<h1 id="转置矩阵"><a href="#转置矩阵" class="headerlink" title="转置矩阵"></a>转置矩阵</h1><p>对一个矩阵的行和列进行互换，即可得到该矩阵的转置（transpose）矩阵。一个m×n矩阵的转置矩阵是一个n×m矩阵。我们将矩阵M的转置矩阵记作M<sup>T</sup>。</p>
-<p>矩阵转置有以下有用的特点：</p>
-<p>1．(A+B)<sup>T</sup>＝A<sup>T</sup>+B<sup>T</sup></p>
-<p>2．(cA)<sup>T</sup>=cA<sup>T</sup></p>
-<p>3．(AB)<sup>T</sup>=B<sup>T</sup>A<sup>T</sup></p>
-<p>4．(A<sup>T</sup>)<sup>T</sup>=A</p>
-<p>5．(A-1)<sup>T</sup>=(A<sup>T</sup>)-1</p>
-<hr>
-<h1 id="单位矩阵"><a href="#单位矩阵" class="headerlink" title="单位矩阵"></a>单位矩阵</h1><p>单位矩阵是一个正方形矩阵，它除了对角线上的元素为1外，其他元素均为0。</p>
-<hr>
-<h1 id="行列式"><a href="#行列式" class="headerlink" title="行列式"></a>行列式</h1><p>略</p>
-<hr>
-<h1 id="伴随矩阵"><a href="#伴随矩阵" class="headerlink" title="伴随矩阵"></a>伴随矩阵</h1><p>略</p>
-<hr>
-<h1 id="逆矩阵"><a href="#逆矩阵" class="headerlink" title="逆矩阵"></a>逆矩阵</h1><p>矩阵代数没定义除法运算，但是它定义了一种乘法的逆（inverse）运算。下面的列表总结了有关逆运算的要点：</p>
-<p>1．只有正方形矩阵能做逆运算；所以，当我们说求逆矩阵时是假设我们正在处理的是一个正方形矩阵。</p>
-<p>2．一个n×n矩阵M的逆矩阵仍然是一个n×n矩阵，记作M<sup>-1</sup>。</p>
-<p>3．不是所有的正方形矩阵都有逆矩阵。有逆矩阵的正方形矩阵称为可逆（invertible）矩阵，没有逆矩阵的称为单调（singular）矩阵。</p>
-<p>4．如果存在逆矩阵，则该逆矩阵是唯一的。</p>
-<p>5．将一个矩阵与它的逆矩阵相乘，其结果必定为单位矩阵：MM<sup>-1</sup>=M<sup>-1</sup>M=I。注意，矩阵与它的逆矩阵的相乘次序可以互换，这是矩阵乘法中的一个特例。</p>
-<hr>
-<h1 id="变换"><a href="#变换" class="headerlink" title="变换"></a>变换</h1><p> <i class="fas fa-link" style="color:#ffb6c1"> <a href="https://www.bilibili.com/video/BV1X7411F744?p=3">GAMES101-现代计算机图形学入门-闫令琪-Lecture 03-04</a></i></p>
-]]></content>
-      <categories>
-        <category>Render</category>
-      </categories>
-      <tags>
-        <tag>Render</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Vulkan初始化</title>
     <url>/2021/09/15/Vulkan_1/</url>
     <content><![CDATA[<h2 id="Instance"><a href="#Instance" class="headerlink" title="Instance"></a>Instance</h2><p>&emsp;&emsp;Instance可以理解与Vulkan交互的一个桥梁。创建Instance需要向驱动程序提供一些应用层信息。例如版本号，名称</p>
@@ -235,14 +210,28 @@ ${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_
       </tags>
   </entry>
   <entry>
-    <title>C++中的引用</title>
-    <url>/2021/09/21/cpp_2_reference/</url>
-    <content><![CDATA[]]></content>
+    <title>交换链和深度缓冲</title>
+    <url>/2021/09/19/DirectX11_3/</url>
+    <content><![CDATA[<h1 id="交换链和页面翻转"><a href="#交换链和页面翻转" class="headerlink" title="交换链和页面翻转"></a>交换链和页面翻转</h1><p>为了避免在动画中出现闪烁，最好的做法是在一个<strong>离屏（off-screen）</strong>纹理中执行所有的动画帧绘制工作，这个离屏纹理称为<strong>后台缓冲区（back buffer）</strong>。当我们在后台缓冲区中完成给定帧的绘制工作后，便可以将后台缓冲区作为一个完整的帧显示在屏幕上；使用这种方法，用户不会察觉到帧的绘制过程，只会看到完整的帧。<br>从理论上讲，将一帧显示到屏幕上所消耗的时间小于屏幕的垂直刷新时间。</p>
+<div class="note info modern"><p>刷新频率分为垂直刷新率和水平刷新率，垂直刷新率表示屏幕的图象每秒种重绘多少次。也就是指每秒钟屏幕刷新的次数，以Hz（赫兹）为单位。水平刷新率又称行频，它表示显示器从左到右绘制一条水平线所用的时间，以kHz为单位。</p>
+</div>
+<p>硬件会自动维护两个内置的纹理缓冲区来实现这一功能，这两个缓冲区分别称为<strong>前台缓冲区（front buffer）</strong>和<strong>后台缓冲区</strong>。前台缓冲区存储了当前显示在屏幕上的图像数据，而动画的下一帧会在后台缓冲区中执行绘制。当后台缓冲区的绘图工作完成之后，前后两个缓冲区的作用会发生翻转：后台缓冲区会变为前台缓冲区， 而前台缓冲区会变为后台缓冲区，为下一帧的绘制工作提前做准备。我们将前后缓冲区功能互换的行为称做<strong>呈现（presenting）</strong>。</p>
+<p>前后缓冲区形成了一个<strong>交换链（swap chain）</strong>。在Direct3D中，交换链由IDXGISwapChain接口表示。该接口保存了前后缓冲区纹理，并提供了用于调整缓冲区尺寸的方法（IDXGISwapChain::ResizeBuffers）和呈现方法（IDXGISwapChain::Present）。</p>
+<p>使用（前后）两个缓冲区称为<strong>双缓冲（double buffering）</strong></p>
+<hr>
+<h1 id="深度缓冲区"><a href="#深度缓冲区" class="headerlink" title="深度缓冲区"></a>深度缓冲区</h1><p>常见的深度值范围在0.0到1.0之间，其中0.0表示离观察者最近的物体，1.0表示离观察者最远的物体。</p>
+<p>深度缓冲区中的每个元素与后台缓冲区中的每个像素一一对应（即，后台缓冲区的第ij个元素对应于深度缓冲区的第ij个元素）。所以，当后台缓冲区的分辨率为1280×1024时，在深度缓冲区中有1280×1024个深度元素。</p>
+<div class="note info modern"><p>深度缓存（depth buffering）== Z缓存（z-buffering）</p>
+</div>
+<hr>
+<h1 id="多重采样"><a href="#多重采样" class="headerlink" title="多重采样"></a>多重采样</h1><p>当无法提高显示器分辨率或分辨率不够高时，我们可以使用<strong>抗锯齿（antialiasing）</strong>技术。其中的一种技术叫做<strong>超级采样（supersampling）</strong>，它把后台缓冲和深度缓冲的大小提高到屏幕分辨率的4倍。3D场景会以这个更大的分辨率渲染到后台缓存中，当在屏幕上呈现后台缓冲时，后台缓冲会将4个像素的颜色取平均值后得到一个像素的最终颜色。</p>
+<p>Direct3D支持另一种称为多重采样（multisampling）的抗锯齿技术，它通过对一个像素的子像素进行采样计算出该像素的最终颜色，比超级采样节省资源。假如我们使用的是4X多重采样（每个像素采样4个邻接像素），多重采样仍然会使用屏幕分辨率4倍大小的后台缓冲和深度缓冲，但是，不像超级采样那样计算每个子像素的颜色，而是只计算像素中心颜色一次，然后基于子像素的可见性（基于子像素的深度/模板测试）和范围（子像素中心在多边形之外还是之内）共享颜色信息。</p>
+]]></content>
       <categories>
-        <category>c++</category>
+        <category>Render</category>
       </categories>
       <tags>
-        <tag>c++</tag>
+        <tag>Render</tag>
       </tags>
   </entry>
   <entry>
@@ -331,6 +320,18 @@ ${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_
 <li>快速访问类的成员数据和函数</li>
 <li>以别名的方式向函数传递参数</li>
 </ul>
+]]></content>
+      <categories>
+        <category>c++</category>
+      </categories>
+      <tags>
+        <tag>c++</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>C++中的引用</title>
+    <url>/2021/09/21/cpp_2_reference/</url>
+    <content><![CDATA[<p>有空再写</p>
 ]]></content>
       <categories>
         <category>c++</category>
