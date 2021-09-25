@@ -424,4 +424,16 @@ ${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_
         <tag>Render</tag>
       </tags>
   </entry>
+  <entry>
+    <title>光源</title>
+    <url>/2021/09/25/light/</url>
+    <content><![CDATA[<p>当一个光源处于很远的地方时，来自光源的每条光线就会近似于互相平行。不论物体和/或者观察者的位置，看起来好像所有的光都来自于同一个方向。当我们使用一个假设光源处于无限远处的模型时，它就被称为<code>定向光</code>，因为它的所有光线都有着相同的方向，它与光源的位置是没有关系的。</p>
+]]></content>
+      <categories>
+        <category>Render</category>
+      </categories>
+      <tags>
+        <tag>Render</tag>
+      </tags>
+  </entry>
 </search>
