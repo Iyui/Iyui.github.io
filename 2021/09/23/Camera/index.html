@@ -1,1 +1,236 @@
-<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>坐标系统与相机 | Iyui的博客</title><meta name="keywords" content="Render"><meta name="author" content="Iyui"><meta name="copyright" content="Iyui"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="坐标系统将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易 5个重要的坐标系统:  局部空间(Local Space，或者称为物体空间(Object Space)) 世界空间(World Space) 观察空间(View Space，或者称为视觉空间(Eye Space)) 裁剪空间(Clip Space) 屏幕空间(Screen Space)  这就"><meta property="og:type" content="article"><meta property="og:title" content="坐标系统与相机"><meta property="og:url" content="http://iyui.github.io/2021/09/23/Camera/index.html"><meta property="og:site_name" content="Iyui的博客"><meta property="og:description" content="坐标系统将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易 5个重要的坐标系统:  局部空间(Local Space，或者称为物体空间(Object Space)) 世界空间(World Space) 观察空间(View Space，或者称为视觉空间(Eye Space)) 裁剪空间(Clip Space) 屏幕空间(Screen Space)  这就"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://p.pstatp.com/origin/pgc-image/46ebf17c58ff49b7a6f5e70b29413692"><meta property="article:published_time" content="2021-09-22T16:00:00.000Z"><meta property="article:modified_time" content="2021-09-25T04:10:48.432Z"><meta property="article:author" content="Iyui"><meta property="article:tag" content="Render"><meta name="twitter:card" content="summary"><meta name="twitter:image" content="https://p.pstatp.com/origin/pgc-image/46ebf17c58ff49b7a6f5e70b29413692"><link rel="shortcut icon" href="/img/sakura.ico"><link rel="canonical" href="http://iyui.github.io/2021/09/23/Camera/"><link rel="preconnect" href="//cdn.jsdelivr.net"><link rel="preconnect" href="//busuanzi.ibruce.info"><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload='this.media="all"'><script>const GLOBAL_CONFIG={root:"/",algolia:void 0,localSearch:void 0,translate:void 0,noticeOutdate:void 0,highlight:{plugin:"highlighjs",highlightCopy:!0,highlightLang:!0,highlightHeightLimit:!1},copy:{success:"复制成功",error:"复制错误",noSupport:"浏览器不支持"},relativeDate:{homepage:!1,post:!1},runtime:"天",date_suffix:{just:"刚刚",min:"分钟前",hour:"小时前",day:"天前",month:"个月前"},copyright:void 0,lightbox:"fancybox",Snackbar:void 0,source:{jQuery:"https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js",justifiedGallery:{js:"https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js",css:"https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css"},fancybox:{js:"https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js",css:"https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"}},isPhotoFigcaption:!1,islazyload:!1,isanchor:!1}</script><script id="config-diff">var GLOBAL_CONFIG_SITE={title:"坐标系统与相机",isPost:!0,isHome:!1,isHighlightShrink:!1,isToc:!1,postUpdate:"2021-09-25 12:10:48"}</script><noscript><style>#nav{opacity:1}.justified-gallery img{opacity:1}#post-meta time,#recent-posts time{display:inline!important}</style></noscript><script>(e=>{e.saveToLocal={set:function(e,t,o){if(0===o)return;const n=864e5*o,a={value:t,expiry:(new Date).getTime()+n};localStorage.setItem(e,JSON.stringify(a))},get:function(e){const t=localStorage.getItem(e);if(!t)return;const o=JSON.parse(t);if(!((new Date).getTime()>o.expiry))return o.value;localStorage.removeItem(e)}},e.getScript=e=>new Promise((t,o)=>{const n=document.createElement("script");n.src=e,n.async=!0,n.onerror=o,n.onload=n.onreadystatechange=function(){const e=this.readyState;e&&"loaded"!==e&&"complete"!==e||(n.onload=n.onreadystatechange=null,t())},document.head.appendChild(n)}),e.activateDarkMode=function(){document.documentElement.setAttribute("data-theme","dark"),null!==document.querySelector('meta[name="theme-color"]')&&document.querySelector('meta[name="theme-color"]').setAttribute("content","#0d0d0d")},e.activateLightMode=function(){document.documentElement.setAttribute("data-theme","light"),null!==document.querySelector('meta[name="theme-color"]')&&document.querySelector('meta[name="theme-color"]').setAttribute("content","#ffffff")};const t=saveToLocal.get("theme");"dark"===t?activateDarkMode():"light"===t&&activateLightMode();const o=saveToLocal.get("global-font-size");void 0!==o&&document.documentElement.style.setProperty("--global-font-size",o+"px");GLOBAL_CONFIG_SITE.isHome&&/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)&&document.documentElement.classList.add("apple")})(window)</script><link rel="stylesheet" href="/css/iyui.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/l-lin/font-awesome-animation/dist/font-awesome-animation.min.css" media="defer" onload='this.media="all"'><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-butterfly-tag-plugins-plus@latest/lib/tag_plugins.min.css" media="defer" onload='this.media="all"'><script async src="https://cdn.jsdelivr.net/npm/hexo-butterfly-tag-plugins-plus@latest/lib/carousel-touch.min.js"></script><meta name="generator" content="Hexo 5.4.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/img/touxiang.jpg" onerror='onerror=null,src="/img/friend_404.gif"' alt="avatar"></div><div class="site-data"><div class="data-item is-center"><div class="data-item-link"><a href="/archives/"><div class="headline">文章</div><div class="length-num">12</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/tags/"><div class="headline">标签</div><div class="length-num">6</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div></div></div><hr><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i> <span>主页</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fas fa-list"></i> <span>归档</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page child" href="/archives/"><i class="fa-fw fas fa-calendar-alt"></i> <span>时间轴</span></a></li><li><a class="site-page child" href="/tags/"><i class="fa-fw fas fa-tags"></i> <span>标签</span></a></li><li><a class="site-page child" href="/categories/"><i class="fa-fw fas fa-folder-open"></i> <span>分类</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/Gallery/"><i class="fa-fw fas fa-images"></i> <span>相册</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i> <span>关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image:url(https://p.pstatp.com/origin/pgc-image/46ebf17c58ff49b7a6f5e70b29413692)"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">Iyui的博客</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i> <span>主页</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fas fa-list"></i> <span>归档</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page child" href="/archives/"><i class="fa-fw fas fa-calendar-alt"></i> <span>时间轴</span></a></li><li><a class="site-page child" href="/tags/"><i class="fa-fw fas fa-tags"></i> <span>标签</span></a></li><li><a class="site-page child" href="/categories/"><i class="fa-fw fas fa-folder-open"></i> <span>分类</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/Gallery/"><i class="fa-fw fas fa-images"></i> <span>相册</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i> <span>关于</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">坐标系统与相机</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2021-09-22T16:00:00.000Z" title="undefined 2021-09-23 00:00:00">2021-09-23</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">字数总计:</span><span class="word-count">1.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>4分钟</span></span><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" data-flag-title="坐标系统与相机"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout hide-aside" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h1 id="坐标系统"><a href="#坐标系统" class="headerlink" title="坐标系统"></a>坐标系统</h1><p>将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易</p><p>5个重要的坐标系统:</p><ul><li>局部空间(Local Space，或者称为物体空间(Object Space))</li><li>世界空间(World Space)</li><li>观察空间(View Space，或者称为视觉空间(Eye Space))</li><li>裁剪空间(Clip Space)</li><li>屏幕空间(Screen Space)</li></ul><p>这就是一个顶点在最终被转化为片段之前需要经历的所有不同状态。</p><p>为了将坐标从一个坐标系变换到另一个坐标系，我们需要用到几个变换矩阵，最重要的几个分别是模型(Model)、观察(View)、投影(Projection)三个矩阵。我们的顶点坐标起始于<code>局部空间</code>(Local Space)，在这里它称为<code>局部坐标</code>(Local Coordinate)，它在之后会变为<code>世界坐标</code>(World Coordinate)，<code>观察坐标</code>(View Coordinate)，<code>裁剪坐标</code>(Clip Coordinate)，并最后以<code>屏幕坐标</code>(Screen Coordinate)的形式结束。</p><ol><li>局部坐标是对象相对于局部原点的坐标，也是物体起始的坐标。</li><li>下一步是将局部坐标变换为世界空间坐标，世界空间坐标是处于一个更大的空间范围的。这些坐标相对于世界的全局原点，它们会和其它物体一起相对于世界的原点进行摆放。</li><li>接下来我们将世界坐标变换为观察空间坐标，使得每个坐标都是从摄像机或者说观察者的角度进行观察的。</li><li>坐标到达观察空间之后，我们需要将其投影到裁剪坐标。裁剪坐标会被处理至-1.0到1.0的范围内，并判断哪些顶点将会出现在屏幕上。</li><li>最后，我们将裁剪坐标变换为屏幕坐标，我们将使用一个叫做视口变换(Viewport Transform)的过程。视口变换将位于-1.0到1.0范围的坐标变换到由glViewport函数所定义的坐标范围内。最后变换出来的坐标将会送到光栅器，将其转化为片段。</li></ol><h2 id="局部空间"><a href="#局部空间" class="headerlink" title="局部空间"></a>局部空间</h2><p>局部空间是指物体所在的坐标空间，即对象最开始所在的地方。想象你在一个建模软件（比如说Blender）中创建了一个立方体。你创建的立方体的原点有可能位于(0, 0, 0)，即便它有可能最后在程序中处于完全不同的位置。甚至有可能你创建的所有模型都以(0, 0, 0)为初始位置（注：然而它们会最终出现在世界的不同位置）。所以，你的模型的所有顶点都是在局部空间中：它们相对于你的物体来说都是局部的。</p><h2 id="世界空间"><a href="#世界空间" class="headerlink" title="世界空间"></a>世界空间</h2><p>世界空间中的坐标正如其名：是指顶点相对于（游戏）世界的坐标。如果你希望将物体分散在世界上摆放（特别是非常真实的那样），这就是你希望物体变换到的空间。物体的坐标将会从局部变换到世界空间；该变换是由模型矩阵(Model Matrix)实现的。</p><p>模型矩阵是一种变换矩阵，它能通过对物体进行位移、缩放、旋转来将它置于它本应该在的位置或朝向。你可以将它想像为变换一个房子，你需要先将它缩小（它在局部空间中太大了），并将其位移至郊区的一个小镇，然后在y轴上往左旋转一点以搭配附近的房子。</p><h2 id="观察空间"><a href="#观察空间" class="headerlink" title="观察空间"></a>观察空间</h2><p>观察空间是将世界空间坐标转化为用户视野前方的坐标而产生的结果。因此观察空间就是从摄像机的视角所观察到的空间。而这通常是由一系列的位移和旋转的组合来完成，平移/旋转场景从而使得特定的对象被变换到摄像机的前方。这些组合在一起的变换通常存储在一个观察矩阵(View Matrix)里，它被用来将世界坐标变换到观察空间。</p><h2 id="裁剪空间"><a href="#裁剪空间" class="headerlink" title="裁剪空间"></a>裁剪空间</h2><p>在一个顶点着色器运行的最后，OpenGL期望所有的坐标都能落在一个特定的范围内，且任何在这个范围之外的点都应该被裁剪掉(Clipped)。被裁剪掉的坐标就会被忽略，所以剩下的坐标就将变为屏幕上可见的片段。这也就是裁剪空间(Clip Space)名字的由来。</p><p>为了将顶点坐标从观察变换到裁剪空间，我们需要定义一个投影矩阵(Projection Matrix)，它指定了一个范围的坐标，比如在每个维度上的-1000到1000。投影矩阵接着会将在这个指定的范围内的坐标变换为标准化设备坐标的范围(-1.0, 1.0)。所有在范围外的坐标不会被映射到在-1.0到1.0的范围之间，所以会被裁剪掉。在上面这个投影矩阵所指定的范围内，坐标(1250, 500, 750)将是不可见的，这是由于它的x坐标超出了范围，它被转化为一个大于1.0的标准化设备坐标，所以被裁剪掉了。</p><p>我们为上述的每一个步骤都创建了一个变换矩阵：模型矩阵、观察矩阵和投影矩阵。一个顶点坐标将会根据以下过程被变换到裁剪坐标：</p><p><center>$V_{clip} = M_{projection} \cdot M_{view} \cdot M_{model} \cdot V_{local}$</center><br></p><div class="note info modern"><p>注意矩阵运算的顺序是相反的（我们需要从右往左阅读矩阵的乘法）。</p></div><p></p><h1 id="相机"><a href="#相机" class="headerlink" title="相机"></a>相机</h1><p>略</p></article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者:</span> <span class="post-copyright-info"><a href="mailto:undefined">Iyui</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接:</span> <span class="post-copyright-info"><a href="http://iyui.github.io/2021/09/23/Camera/">http://iyui.github.io/2021/09/23/Camera/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明:</span> <span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://iyui.github.io" target="_blank">Iyui的博客</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Render/">Render</a></div><div class="post_share"><div class="social-share" data-image="https://p.pstatp.com/origin/pgc-image/46ebf17c58ff49b7a6f5e70b29413692" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css" media="print" onload='this.media="all"'><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2019 - 2021 By Iyui</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="font-plus" type="button" title="放大字体"><i class="fas fa-plus"></i></button><button id="font-minus" type="button" title="缩小字体"><i class="fas fa-minus"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script>var preloader={endLoading:()=>{document.body.style.overflow="auto",document.getElementById("loading-box").classList.add("loaded")},initLoading:()=>{document.body.style.overflow="",document.getElementById("loading-box").classList.remove("loaded")}};window.addEventListener("load",preloader.endLoading())</script><div class="js-pjax"><script>if(window.MathJax)MathJax.startup.document.state(0),MathJax.texReset(),MathJax.typeset();else{window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],tags:"ams"},chtml:{scale:1.2},options:{renderActions:{findScript:[10,t=>{for(const e of document.querySelectorAll('script[type^="math/tex"]')){const a=!!e.type.match(/; *mode=display/),n=new t.options.MathItem(e.textContent,t.inputJax[0],a),s=document.createTextNode("");e.parentNode.replaceChild(s,e),n.start={node:s,delim:"",n:0},n.end={node:s,delim:"",n:0},t.math.push(n)}},""],insertScript:[200,()=>{document.querySelectorAll("mjx-container:not([display])").forEach(t=>{const e=t.parentNode;"li"===e.nodeName.toLowerCase()?e.parentNode.classList.add("has-jax"):e.classList.add("has-jax")})},"",!1]}}};const t=document.createElement("script");t.src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js",t.id="MathJax-script",t.async=!0,document.head.appendChild(t)}</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css"><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/contrib/copy-tex.min.js"></script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/contrib/copy-tex.css"><script>document.querySelectorAll("#article-container span.katex-display").forEach(a=>{btf.wrap(a,"div",{class:"katex-wrap"})})</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div><script async src="//at.alicdn.com/t/font_2032782_8d5kxvn09md.js"></script></body></html>
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>坐标系统与相机 | Iyui的博客</title><meta name="keywords" content="Render"><meta name="author" content="Iyui"><meta name="copyright" content="Iyui"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="坐标系统将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易 5个重要的坐标系统:  局部空间(Local Space，或者称为物体空间(Object Space)) 世界空间(World Space) 观察空间(View Space，或者称为视觉空间(Eye Space)) 裁剪空间(Clip Space) 屏幕空间(Screen Space)  这就">
+<meta property="og:type" content="article">
+<meta property="og:title" content="坐标系统与相机">
+<meta property="og:url" content="http://iyui.github.io/2021/09/23/Camera/index.html">
+<meta property="og:site_name" content="Iyui的博客">
+<meta property="og:description" content="坐标系统将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易 5个重要的坐标系统:  局部空间(Local Space，或者称为物体空间(Object Space)) 世界空间(World Space) 观察空间(View Space，或者称为视觉空间(Eye Space)) 裁剪空间(Clip Space) 屏幕空间(Screen Space)  这就">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p.pstatp.com/origin/pgc-image/46ebf17c58ff49b7a6f5e70b29413692">
+<meta property="article:published_time" content="2021-09-22T16:00:00.000Z">
+<meta property="article:modified_time" content="2021-09-25T04:10:48.432Z">
+<meta property="article:author" content="Iyui">
+<meta property="article:tag" content="Render">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p.pstatp.com/origin/pgc-image/46ebf17c58ff49b7a6f5e70b29413692"><link rel="shortcut icon" href="/img/sakura.ico"><link rel="canonical" href="http://iyui.github.io/2021/09/23/Camera/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js',
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+    },
+    fancybox: {
+      js: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isanchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '坐标系统与相机',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: false,
+  postUpdate: '2021-09-25 12:10:48'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+    const fontSizeVal = saveToLocal.get('global-font-size')
+    if (fontSizeVal !== undefined) {
+      document.documentElement.style.setProperty('--global-font-size', fontSizeVal + 'px')
+    }
+    
+    const detectApple = () => {
+      if (GLOBAL_CONFIG_SITE.isHome && /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><link rel="stylesheet" href="/css/iyui.css"><!-- hexo injector head_end start --><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/l-lin/font-awesome-animation/dist/font-awesome-animation.min.css" media="defer" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-butterfly-tag-plugins-plus@latest/lib/tag_plugins.min.css" media="defer" onload="this.media='all'"><script async src="https://cdn.jsdelivr.net/npm/hexo-butterfly-tag-plugins-plus@latest/lib/carousel-touch.min.js"></script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 5.4.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/img/touxiang.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data"><div class="data-item is-center"><div class="data-item-link"><a href="/archives/"><div class="headline">文章</div><div class="length-num">12</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/tags/"><div class="headline">标签</div><div class="length-num">6</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fas fa-list"></i><span> 归档</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page child" href="/archives/"><i class="fa-fw fas fa-calendar-alt"></i><span> 时间轴</span></a></li><li><a class="site-page child" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></li><li><a class="site-page child" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/Gallery/"><i class="fa-fw fas fa-images"></i><span> 相册</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('https://p.pstatp.com/origin/pgc-image/46ebf17c58ff49b7a6f5e70b29413692')"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">Iyui的博客</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fas fa-list"></i><span> 归档</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page child" href="/archives/"><i class="fa-fw fas fa-calendar-alt"></i><span> 时间轴</span></a></li><li><a class="site-page child" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></li><li><a class="site-page child" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/Gallery/"><i class="fa-fw fas fa-images"></i><span> 相册</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">坐标系统与相机</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2021-09-22T16:00:00.000Z" title="undefined 2021-09-23 00:00:00">2021-09-23</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">字数总计:</span><span class="word-count">1.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>4分钟</span></span><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="坐标系统与相机"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout hide-aside" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h1 id="坐标系统"><a href="#坐标系统" class="headerlink" title="坐标系统"></a>坐标系统</h1><p>将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易</p>
+<p>5个重要的坐标系统:</p>
+<ul>
+<li>局部空间(Local Space，或者称为物体空间(Object Space))</li>
+<li>世界空间(World Space)</li>
+<li>观察空间(View Space，或者称为视觉空间(Eye Space))</li>
+<li>裁剪空间(Clip Space)</li>
+<li>屏幕空间(Screen Space)</li>
+</ul>
+<p>这就是一个顶点在最终被转化为片段之前需要经历的所有不同状态。</p>
+<p>为了将坐标从一个坐标系变换到另一个坐标系，我们需要用到几个变换矩阵，最重要的几个分别是模型(Model)、观察(View)、投影(Projection)三个矩阵。我们的顶点坐标起始于<code>局部空间</code>(Local Space)，在这里它称为<code>局部坐标</code>(Local Coordinate)，它在之后会变为<code>世界坐标</code>(World Coordinate)，<code>观察坐标</code>(View Coordinate)，<code>裁剪坐标</code>(Clip Coordinate)，并最后以<code>屏幕坐标</code>(Screen Coordinate)的形式结束。</p>
+<ol>
+<li>局部坐标是对象相对于局部原点的坐标，也是物体起始的坐标。</li>
+<li>下一步是将局部坐标变换为世界空间坐标，世界空间坐标是处于一个更大的空间范围的。这些坐标相对于世界的全局原点，它们会和其它物体一起相对于世界的原点进行摆放。</li>
+<li>接下来我们将世界坐标变换为观察空间坐标，使得每个坐标都是从摄像机或者说观察者的角度进行观察的。</li>
+<li>坐标到达观察空间之后，我们需要将其投影到裁剪坐标。裁剪坐标会被处理至-1.0到1.0的范围内，并判断哪些顶点将会出现在屏幕上。</li>
+<li>最后，我们将裁剪坐标变换为屏幕坐标，我们将使用一个叫做视口变换(Viewport Transform)的过程。视口变换将位于-1.0到1.0范围的坐标变换到由glViewport函数所定义的坐标范围内。最后变换出来的坐标将会送到光栅器，将其转化为片段。</li>
+</ol>
+<h2 id="局部空间"><a href="#局部空间" class="headerlink" title="局部空间"></a>局部空间</h2><p>局部空间是指物体所在的坐标空间，即对象最开始所在的地方。想象你在一个建模软件（比如说Blender）中创建了一个立方体。你创建的立方体的原点有可能位于(0, 0, 0)，即便它有可能最后在程序中处于完全不同的位置。甚至有可能你创建的所有模型都以(0, 0, 0)为初始位置（注：然而它们会最终出现在世界的不同位置）。所以，你的模型的所有顶点都是在局部空间中：它们相对于你的物体来说都是局部的。</p>
+<h2 id="世界空间"><a href="#世界空间" class="headerlink" title="世界空间"></a>世界空间</h2><p>世界空间中的坐标正如其名：是指顶点相对于（游戏）世界的坐标。如果你希望将物体分散在世界上摆放（特别是非常真实的那样），这就是你希望物体变换到的空间。物体的坐标将会从局部变换到世界空间；该变换是由模型矩阵(Model Matrix)实现的。</p>
+<p>模型矩阵是一种变换矩阵，它能通过对物体进行位移、缩放、旋转来将它置于它本应该在的位置或朝向。你可以将它想像为变换一个房子，你需要先将它缩小（它在局部空间中太大了），并将其位移至郊区的一个小镇，然后在y轴上往左旋转一点以搭配附近的房子。</p>
+<h2 id="观察空间"><a href="#观察空间" class="headerlink" title="观察空间"></a>观察空间</h2><p>观察空间是将世界空间坐标转化为用户视野前方的坐标而产生的结果。因此观察空间就是从摄像机的视角所观察到的空间。而这通常是由一系列的位移和旋转的组合来完成，平移/旋转场景从而使得特定的对象被变换到摄像机的前方。这些组合在一起的变换通常存储在一个观察矩阵(View Matrix)里，它被用来将世界坐标变换到观察空间。</p>
+<h2 id="裁剪空间"><a href="#裁剪空间" class="headerlink" title="裁剪空间"></a>裁剪空间</h2><p>在一个顶点着色器运行的最后，OpenGL期望所有的坐标都能落在一个特定的范围内，且任何在这个范围之外的点都应该被裁剪掉(Clipped)。被裁剪掉的坐标就会被忽略，所以剩下的坐标就将变为屏幕上可见的片段。这也就是裁剪空间(Clip Space)名字的由来。</p>
+<p>为了将顶点坐标从观察变换到裁剪空间，我们需要定义一个投影矩阵(Projection Matrix)，它指定了一个范围的坐标，比如在每个维度上的-1000到1000。投影矩阵接着会将在这个指定的范围内的坐标变换为标准化设备坐标的范围(-1.0, 1.0)。所有在范围外的坐标不会被映射到在-1.0到1.0的范围之间，所以会被裁剪掉。在上面这个投影矩阵所指定的范围内，坐标(1250, 500, 750)将是不可见的，这是由于它的x坐标超出了范围，它被转化为一个大于1.0的标准化设备坐标，所以被裁剪掉了。</p>
+<p>我们为上述的每一个步骤都创建了一个变换矩阵：模型矩阵、观察矩阵和投影矩阵。一个顶点坐标将会根据以下过程被变换到裁剪坐标：</p>
+<p><center>
+$V_{clip} = M_{projection} \cdot M_{view} \cdot M_{model} \cdot V_{local}$
+</center><br>    <div class="note info modern"><p>注意矩阵运算的顺序是相反的（我们需要从右往左阅读矩阵的乘法）。</p>
+</div></p>
+<h1 id="相机"><a href="#相机" class="headerlink" title="相机"></a>相机</h1><p>略</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">Iyui</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://iyui.github.io/2021/09/23/Camera/">http://iyui.github.io/2021/09/23/Camera/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://iyui.github.io" target="_blank">Iyui的博客</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Render/">Render</a></div><div class="post_share"><div class="social-share" data-image="https://p.pstatp.com/origin/pgc-image/46ebf17c58ff49b7a6f5e70b29413692" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2019 - 2021 By Iyui</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="font-plus" type="button" title="放大字体"><i class="fas fa-plus"></i></button><button id="font-minus" type="button" title="缩小字体"><i class="fas fa-minus"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script>var preloader = {
+  endLoading: () => {
+    document.body.style.overflow = 'auto';
+    document.getElementById('loading-box').classList.add("loaded")
+  },
+  initLoading: () => {
+    document.body.style.overflow = '';
+    document.getElementById('loading-box').classList.remove("loaded")
+
+  }
+}
+window.addEventListener('load',preloader.endLoading())</script><div class="js-pjax"><script>if (!window.MathJax) {
+  window.MathJax = {
+    tex: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"]],
+      tags: 'ams'
+    },
+    chtml: {
+      scale: 1.2
+    },
+    options: {
+      renderActions: {
+        findScript: [10, doc => {
+          for (const node of document.querySelectorAll('script[type^="math/tex"]')) {
+            const display = !!node.type.match(/; *mode=display/)
+            const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display)
+            const text = document.createTextNode('')
+            node.parentNode.replaceChild(text, node)
+            math.start = {node: text, delim: '', n: 0}
+            math.end = {node: text, delim: '', n: 0}
+            doc.math.push(math)
+          }
+        }, ''],
+        insertScript: [200, () => {
+          document.querySelectorAll('mjx-container:not\([display]\)').forEach(node => {
+            const target = node.parentNode
+            if (target.nodeName.toLowerCase() === 'li') {
+              target.parentNode.classList.add('has-jax')
+            } else {
+              target.classList.add('has-jax')
+            }
+          });
+        }, '', false]
+      }
+    }
+  }
+  
+  const script = document.createElement('script')
+  script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
+  script.id = 'MathJax-script'
+  script.async = true
+  document.head.appendChild(script)
+} else {
+  MathJax.startup.document.state(0)
+  MathJax.texReset()
+  MathJax.typeset()
+}</script><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css"><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/contrib/copy-tex.min.js"></script><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/contrib/copy-tex.css"><script>(() => {
+  document.querySelectorAll('#article-container span.katex-display').forEach(item => {
+    btf.wrap(item, 'div', { class: 'katex-wrap'})
+  })
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div><!-- hexo injector body_end start --><script async src="//at.alicdn.com/t/font_2032782_8d5kxvn09md.js"></script><!-- hexo injector body_end end --></body></html>
