@@ -329,8 +329,8 @@ ${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_
       </tags>
   </entry>
   <entry>
-    <title>C++中的重载</title>
-    <url>/2021/09/21/cpp_3_overload/</url>
+    <title>C++中的引用</title>
+    <url>/2021/09/21/cpp_2_reference/</url>
     <content><![CDATA[<p>有空再写</p>
 ]]></content>
       <categories>
@@ -341,8 +341,8 @@ ${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_
       </tags>
   </entry>
   <entry>
-    <title>C++中的引用</title>
-    <url>/2021/09/21/cpp_2_reference/</url>
+    <title>C++中的重载</title>
+    <url>/2021/09/21/cpp_3_overload/</url>
     <content><![CDATA[<p>有空再写</p>
 ]]></content>
       <categories>
