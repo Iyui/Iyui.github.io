@@ -1,211 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>基于CUDA的光线追踪器[1]</title>
-    <url>/2021/08/15/CUDA_RayTracer_1/</url>
-    <content><![CDATA[<p>&emsp;&emsp;绝大部分的光线追踪器教程以CPU实现为主,而以GPU实现的教程甚少,对于图形学和GPU并行编程在这之前没有接触过或接触不久的初学者(比如我)来说,虽掌握了一些理论知识,但在使用代码实现的时候非常困难,该文章的主要目的为笔者的学习记录,代码中尽可能地对CUDA并行编程部分写了注释,也希望今后能对其他学习者提供一些帮助,在配置好CUDA环境的情况下可以直接运行代码<br>&emsp;&emsp;本文章中的光线追踪部分参考<a href="https://raytracing.github.io/books/RayTracingInOneWeekend.html">&lt;&lt; Ray Tracing in One Weekend &gt;&gt;</a><br>&emsp;&emsp;CUDA的基础知识则来自&lt;&lt; GPU高性能编程CUDA实战 &gt;&gt;一书<br>&emsp;&emsp;开发环境:GTX 1050 &amp;&amp; CUDA 11.4</p>
-<hr>
-<p>&emsp;&emsp;首先简单地使用CUDA渲染出一张图片</p>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;cuda_runtime.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;device_launch_parameters.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;cpu_bitmap.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;book.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;cuda.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DIM 256</span></span><br><span class="line"></span><br><span class="line"><span class="function">__device__ <span class="keyword">void</span> <span class="title">SetColor</span><span class="params">(<span class="keyword">int</span> x, <span class="keyword">int</span> y,<span class="keyword">int</span> &amp;ir,<span class="keyword">int</span> &amp;ig,<span class="keyword">int</span> &amp;ib)</span> </span>&#123;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">double</span> r = (<span class="keyword">double</span>)x / (DIM - <span class="number">1</span>);</span><br><span class="line">	<span class="keyword">double</span> g = (<span class="keyword">double</span>)y / (DIM - <span class="number">1</span>);</span><br><span class="line">	<span class="keyword">double</span> b = <span class="number">0.25</span>;</span><br><span class="line"></span><br><span class="line">	ir = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * r);</span><br><span class="line">	ig = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * g);</span><br><span class="line">	ib = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * b);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="keyword">void</span> <span class="title">kernel</span><span class="params">(<span class="keyword">unsigned</span> <span class="keyword">char</span>* ptr)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 将threadIdx/BlockIdx映射到像素位置</span></span><br><span class="line">    <span class="keyword">int</span> x = blockIdx.x;</span><br><span class="line">    <span class="keyword">int</span> y = blockIdx.y;</span><br><span class="line">	<span class="keyword">int</span> offset = x + y * gridDim.x;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">int</span> r = <span class="number">0</span>;</span><br><span class="line">	<span class="keyword">int</span> g = <span class="number">0</span>;</span><br><span class="line">	<span class="keyword">int</span> b = <span class="number">0</span>;</span><br><span class="line">	<span class="built_in">SetColor</span>(x, y, r, g, b);</span><br><span class="line"></span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">0</span>] = r;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">1</span>] = g;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">2</span>] = b;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">3</span>] = <span class="number">255</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">DataBlock</span> &#123;</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">char</span>* dev_bitmap;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">void</span>)</span> </span>&#123;</span><br><span class="line">	DataBlock   data;</span><br><span class="line">	<span class="function">CPUBitmap <span class="title">bitmap</span><span class="params">(DIM, DIM)</span></span>;<span class="comment">//创建一个DIM*DIM大小的位图图像</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">char</span> *dev_bitmap;<span class="comment">//接下来将在GPU上执行计算 因此在代码中声明一个指针用来保存设备上数据的副本</span></span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaMalloc</span>((<span class="keyword">void</span>**)&amp;dev_bitmap,</span><br><span class="line">		bitmap.<span class="built_in">image_size</span>()));<span class="comment">//为了保存数据,需要cudaMalloc来分配内存</span></span><br><span class="line">	data.dev_bitmap = dev_bitmap;</span><br><span class="line">	<span class="function">dim3 <span class="title">grid</span><span class="params">(DIM, DIM)</span></span>;<span class="comment">//由于每个点的计算与其他点的计算都是相互独立的,</span></span><br><span class="line">						<span class="comment">//因此可以为每个需要计算的点都执行该函数的一个副本</span></span><br><span class="line">						<span class="comment">//在某些情况下使用二维索引会带来一定的帮助,显然在二维空间中计算函数值正属于这种情况</span></span><br><span class="line">						<span class="comment">//因此此处声明了一个二维的线程格</span></span><br><span class="line">	kernel &lt;&lt; &lt;grid, <span class="number">1</span> &gt;&gt; &gt; (dev_bitmap);<span class="comment">//将dim3变量grid传递给CUDA运行</span></span><br><span class="line">										<span class="comment">//之前分配的指针传递给kernel来保存计算结果</span></span><br><span class="line">	<span class="comment">//执行完kernel之后,设备上会生成计算结果,我们需要将这些结果复制回主机</span></span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaMemcpy</span>(bitmap.<span class="built_in">get_ptr</span>(), </span><br><span class="line">				dev_bitmap,</span><br><span class="line">				bitmap.<span class="built_in">image_size</span>(),</span><br><span class="line">				cudaMemcpyDeviceToHost));</span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaFree</span>(dev_bitmap));</span><br><span class="line">	bitmap.<span class="built_in">display_and_exit</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p><img src="/img/CUDA/CUDA_Raytracer_1.png" alt=""></p>
-]]></content>
-      <categories>
-        <category>RayTracing</category>
-      </categories>
-      <tags>
-        <tag>CUDA</tag>
-        <tag>RayTracing</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Vector algebra in CG</title>
-    <url>/2021/09/17/DirectX11_1/</url>
-    <content><![CDATA[<h1 id="坐标系"><a href="#坐标系" class="headerlink" title="坐标系"></a>坐标系</h1><p>左手坐标系:左手大拇指指向x轴的正方向，然后朝y轴正方向弯曲四指，大拇指就会指向z轴正方向</p>
-<ul>
-<li>DirectX为左手坐标系</li>
-<li>Unity3D为左手坐标系</li>
-</ul>
-<p>右手坐标系:右手…</p>
-<ul>
-<li>OpenGL为右手坐标系</li>
-<li>Vulkan为右手坐标系</li>
-</ul>
-<hr>
-<h1 id="长度和单位向量"><a href="#长度和单位向量" class="headerlink" title="长度和单位向量"></a>长度和单位向量</h1><p>normalize:在某些应用中，我们不关心向量的长度， 只希望用向量来表示一个单纯的方向。对于这种只表示方向、不表示大小的向量，我们希望将其长度精确地设定为1。当我们想要让一个向量具有单位长度时，我们说要对该向量进行规范化。我们将向量的每个分量除以该向量的模，得到规范化向量</p>
-<center>
-
-${\bf{\hat u}} = \frac{{\bf{u}}}{{\left\| {\bf{u}} \right\|}} = \left( {\frac{x}{{\left\| {\bf{u}} \right\|}},\frac{y}{{\left\| {\bf{u}} \right\|}},\frac{z}{{\left\| {\bf{u}} \right\|}}} \right)$
-
-</center>
-其中求模公式:
-<center>
-
-$\left\| {\bf{u}} \right\| = \sqrt {{y^2} + {a^2}} = \sqrt {{y^2} + {{(\sqrt {{x^2} + {z^2}} )}^2}} = \sqrt {{x^2} + {y^2} + {z^2}} $
-</center>
-
-<p>对向量v= (−1,3,4) 进行规范化。我们计算</p>
-<center>$\left\| {\bf{v}} \right\| = \sqrt {{{( - 1)}^2} + {3^2} + {4^2}} = \sqrt {26} $</center>
-则:
-<center>
-${\bf{\hat v}} = \frac{{\bf{v}}}{{\left\| {\bf{v}} \right\|}} = \left( { - \frac{1}{{\sqrt {26} }},\frac{3}{{\sqrt {26} }}\frac{4}{{\sqrt {26} }}} \right)$
-</center>
-要验证
-${\bf{\hat v}}$
-是否为单位向量，只需计算它的长度：
-<center>
-$\left\| {{\bf{\hat v}}} \right\| = \sqrt {{{\left( { - \frac{1}{{\sqrt {26} }}} \right)}^2} + {{\left( {\frac{3}{{\sqrt {26} }}} \right)}^2} + {{\left( {\frac{4}{{\sqrt {26} }}} \right)}^2}} = \sqrt {\frac{1}{{26}} + \frac{9}{{26}} + \frac{{16}}{{26}}} = \sqrt 1 = 1$
-</center>
-
-<hr>
-<h1 id="点积"><a href="#点积" class="headerlink" title="点积"></a>点积</h1><p>设u=（ux,uy,uz），v=（vx,vy,vz），则点积定义如下：</p>
-<center>
-${\bf{u}} \cdot {\bf{v}} = {u_x}{v_x} + {u_y}{v_y} + {u_z}{v_z}$
-</center>
-使用余弦定理可以发现存在如下关系：
-<center>
-${\bf{u}} \cdot {\bf{v}} = \left\| {\bf{u}} \right\|\left\| {\bf{v}} \right\|\cos \theta $
-</center>
-
-<h3 id="点积的几何性质："><a href="#点积的几何性质：" class="headerlink" title="点积的几何性质："></a>点积的几何性质：</h3><p>1．如果u∙v=0，则u⊥v（即，向量相互垂直）。</p>
-<p>2．如果u∙v＞0，则两个向量之间的夹角θ小于90º（即，向量形成一个锐角）。</p>
-<p>3．如果u∙v＜0，则两个向量之间的夹角θ大于90º（即，向量形成一个钝角）。</p>
-<p>设u=（1, 2,3）、v=（−4, 0, −1）。求u和v之间的夹角。首先，我们要做如下计算：</p>
-<center>
-$\begin{array}{l}{\bf{u}} \cdot {\bf{v}} = (1,2,3) \cdot ( - 4,0, - 1) = - 4 - 3 = - 7\\\left\| {\bf{u}} \right\| = \sqrt {{1^2} + {2^2} + {3^3}} = \sqrt {14} \\\left\| {\bf{v}} \right\| = \sqrt {{{( - 4)}^2} + {0^2} + {{( - 1)}^2}} = \sqrt {17} \end{array}$
-</center>
-<center>
-$\begin{array}{l}\cos \theta = \frac{{{\bf{u}} \cdot {\bf{v}}}}{{\left\| {\bf{u}} \right\|\left\| {\bf{v}} \right\|}} = \frac{{ - 7}}{{\sqrt {14} \sqrt {17} }}\\\theta = {\cos ^{ - 1}}\frac{{ - 7}}{{\sqrt {14} \sqrt {17} }} \approx 117^\circ \end{array}$
-</center>
-通用投影公式:
-<center>
-${\bf{p}} = pro{j_{\bf{n}}}({\bf{v}}) = ({\bf{v}} \cdot \frac{{\bf{n}}}{{\left\| {\bf{n}} \right\|}})\frac{{\bf{n}}}{{\left\| {\bf{n}} \right\|}} = \frac{{({\bf{v}} \cdot {\bf{n}})}}{{{{\left\| {\bf{n}} \right\|}^2}}}{\bf{n}}$
-</center>
-
-<h2 id="正交化"><a href="#正交化" class="headerlink" title="正交化"></a><del>正交化</del></h2><p><del>没懂</del> 暂略</p>
-<hr>
-<h1 id="叉积"><a href="#叉积" class="headerlink" title="叉积"></a>叉积</h1><p>与点积不同，点积的计算结果是一个标量，而叉积的计算结果是一个向量；另外，叉积只能用于3D向量（2D向量没有叉积）。通过对两个3D向量u和v计算叉积，可以得到第3个向量w，该向量同时垂直于u和v。<br>设u=（ux,uy,uz），v=（vx,vy,vz），则叉积为：</p>
-<center>
-${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_x}{v_z},{u_x}{v_y} - {u_y}{v_x})$
-</center>
-
-<h2 id="使用叉积进行正交规范化"><a href="#使用叉积进行正交规范化" class="headerlink" title="使用叉积进行正交规范化"></a><del>使用叉积进行正交规范化</del></h2><p><del>没懂</del> 暂略</p>
-<hr>
-<h1 id="点"><a href="#点" class="headerlink" title="点"></a>点</h1><p>相对于一个坐标系，我们可以使用在标准位置上的向量来表示空间中的3D位置； 我们将它称为位置向量,向量末端的位置是唯一需要关注的特性，而方向和大小都无关紧要。我们会交替使用术语“位置向量”和“点”，因为位置向量表示的就是一个点。</p>
-]]></content>
-      <categories>
-        <category>Render</category>
-      </categories>
-      <tags>
-        <tag>Render</tag>
-        <tag>Fundamentals of CG</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>坐标系统与相机</title>
-    <url>/2021/09/23/Camera/</url>
-    <content><![CDATA[<h1 id="坐标系统"><a href="#坐标系统" class="headerlink" title="坐标系统"></a>坐标系统</h1><p>将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易</p>
-<p>5个重要的坐标系统:</p>
-<ul>
-<li>局部空间(Local Space，或者称为物体空间(Object Space))</li>
-<li>世界空间(World Space)</li>
-<li>观察空间(View Space，或者称为视觉空间(Eye Space))</li>
-<li>裁剪空间(Clip Space)</li>
-<li>屏幕空间(Screen Space)</li>
-</ul>
-<p>这就是一个顶点在最终被转化为片段之前需要经历的所有不同状态。</p>
-<p>为了将坐标从一个坐标系变换到另一个坐标系，我们需要用到几个变换矩阵，最重要的几个分别是模型(Model)、观察(View)、投影(Projection)三个矩阵。我们的顶点坐标起始于<code>局部空间</code>(Local Space)，在这里它称为<code>局部坐标</code>(Local Coordinate)，它在之后会变为<code>世界坐标</code>(World Coordinate)，<code>观察坐标</code>(View Coordinate)，<code>裁剪坐标</code>(Clip Coordinate)，并最后以<code>屏幕坐标</code>(Screen Coordinate)的形式结束。</p>
-<ol>
-<li>局部坐标是对象相对于局部原点的坐标，也是物体起始的坐标。</li>
-<li>下一步是将局部坐标变换为世界空间坐标，世界空间坐标是处于一个更大的空间范围的。这些坐标相对于世界的全局原点，它们会和其它物体一起相对于世界的原点进行摆放。</li>
-<li>接下来我们将世界坐标变换为观察空间坐标，使得每个坐标都是从摄像机或者说观察者的角度进行观察的。</li>
-<li>坐标到达观察空间之后，我们需要将其投影到裁剪坐标。裁剪坐标会被处理至-1.0到1.0的范围内，并判断哪些顶点将会出现在屏幕上。</li>
-<li>最后，我们将裁剪坐标变换为屏幕坐标，我们将使用一个叫做视口变换(Viewport Transform)的过程。视口变换将位于-1.0到1.0范围的坐标变换到由glViewport函数所定义的坐标范围内。最后变换出来的坐标将会送到光栅器，将其转化为片段。</li>
-</ol>
-<h2 id="局部空间"><a href="#局部空间" class="headerlink" title="局部空间"></a>局部空间</h2><p>局部空间是指物体所在的坐标空间，即对象最开始所在的地方。想象你在一个建模软件（比如说Blender）中创建了一个立方体。你创建的立方体的原点有可能位于(0, 0, 0)，即便它有可能最后在程序中处于完全不同的位置。甚至有可能你创建的所有模型都以(0, 0, 0)为初始位置（注：然而它们会最终出现在世界的不同位置）。所以，你的模型的所有顶点都是在局部空间中：它们相对于你的物体来说都是局部的。</p>
-<h2 id="世界空间"><a href="#世界空间" class="headerlink" title="世界空间"></a>世界空间</h2><p>世界空间中的坐标正如其名：是指顶点相对于（游戏）世界的坐标。如果你希望将物体分散在世界上摆放（特别是非常真实的那样），这就是你希望物体变换到的空间。物体的坐标将会从局部变换到世界空间；该变换是由模型矩阵(Model Matrix)实现的。</p>
-<p>模型矩阵是一种变换矩阵，它能通过对物体进行位移、缩放、旋转来将它置于它本应该在的位置或朝向。你可以将它想像为变换一个房子，你需要先将它缩小（它在局部空间中太大了），并将其位移至郊区的一个小镇，然后在y轴上往左旋转一点以搭配附近的房子。</p>
-<h2 id="观察空间"><a href="#观察空间" class="headerlink" title="观察空间"></a>观察空间</h2><p>观察空间是将世界空间坐标转化为用户视野前方的坐标而产生的结果。因此观察空间就是从摄像机的视角所观察到的空间。而这通常是由一系列的位移和旋转的组合来完成，平移/旋转场景从而使得特定的对象被变换到摄像机的前方。这些组合在一起的变换通常存储在一个观察矩阵(View Matrix)里，它被用来将世界坐标变换到观察空间。</p>
-<h2 id="裁剪空间"><a href="#裁剪空间" class="headerlink" title="裁剪空间"></a>裁剪空间</h2><p>在一个顶点着色器运行的最后，OpenGL期望所有的坐标都能落在一个特定的范围内，且任何在这个范围之外的点都应该被裁剪掉(Clipped)。被裁剪掉的坐标就会被忽略，所以剩下的坐标就将变为屏幕上可见的片段。这也就是裁剪空间(Clip Space)名字的由来。</p>
-<p>为了将顶点坐标从观察变换到裁剪空间，我们需要定义一个投影矩阵(Projection Matrix)，它指定了一个范围的坐标，比如在每个维度上的-1000到1000。投影矩阵接着会将在这个指定的范围内的坐标变换为标准化设备坐标的范围(-1.0, 1.0)。所有在范围外的坐标不会被映射到在-1.0到1.0的范围之间，所以会被裁剪掉。在上面这个投影矩阵所指定的范围内，坐标(1250, 500, 750)将是不可见的，这是由于它的x坐标超出了范围，它被转化为一个大于1.0的标准化设备坐标，所以被裁剪掉了。</p>
-<p>我们为上述的每一个步骤都创建了一个变换矩阵：模型矩阵、观察矩阵和投影矩阵。一个顶点坐标将会根据以下过程被变换到裁剪坐标：</p>
-<p><center>
-$V_{clip} = M_{projection} \cdot M_{view} \cdot M_{model} \cdot V_{local}$
-</center><br>    <div class="note info modern"><p>注意矩阵运算的顺序是相反的（我们需要从右往左阅读矩阵的乘法）。</p>
-</div></p>
-<h1 id="相机"><a href="#相机" class="headerlink" title="相机"></a>相机</h1><p>略</p>
-]]></content>
-      <categories>
-        <category>Render</category>
-      </categories>
-      <tags>
-        <tag>Render</tag>
-        <tag>Fundamentals of CG</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>交换链和深度缓冲</title>
-    <url>/2021/09/19/DirectX11_3/</url>
-    <content><![CDATA[<h1 id="交换链和页面翻转"><a href="#交换链和页面翻转" class="headerlink" title="交换链和页面翻转"></a>交换链和页面翻转</h1><p>为了避免在动画中出现闪烁，最好的做法是在一个<strong>离屏（off-screen）</strong>纹理中执行所有的动画帧绘制工作，这个离屏纹理称为<strong>后台缓冲区（back buffer）</strong>。当我们在后台缓冲区中完成给定帧的绘制工作后，便可以将后台缓冲区作为一个完整的帧显示在屏幕上；使用这种方法，用户不会察觉到帧的绘制过程，只会看到完整的帧。<br>从理论上讲，将一帧显示到屏幕上所消耗的时间小于屏幕的垂直刷新时间。</p>
-<div class="note info modern"><p>刷新频率分为垂直刷新率和水平刷新率，垂直刷新率表示屏幕的图象每秒种重绘多少次。也就是指每秒钟屏幕刷新的次数，以Hz（赫兹）为单位。水平刷新率又称行频，它表示显示器从左到右绘制一条水平线所用的时间，以kHz为单位。</p>
-</div>
-<p>硬件会自动维护两个内置的纹理缓冲区来实现这一功能，这两个缓冲区分别称为<strong>前台缓冲区（front buffer）</strong>和<strong>后台缓冲区</strong>。前台缓冲区存储了当前显示在屏幕上的图像数据，而动画的下一帧会在后台缓冲区中执行绘制。当后台缓冲区的绘图工作完成之后，前后两个缓冲区的作用会发生翻转：后台缓冲区会变为前台缓冲区， 而前台缓冲区会变为后台缓冲区，为下一帧的绘制工作提前做准备。我们将前后缓冲区功能互换的行为称做<strong>呈现（presenting）</strong>。</p>
-<p>前后缓冲区形成了一个<strong>交换链（swap chain）</strong>。在Direct3D中，交换链由IDXGISwapChain接口表示。该接口保存了前后缓冲区纹理，并提供了用于调整缓冲区尺寸的方法（IDXGISwapChain::ResizeBuffers）和呈现方法（IDXGISwapChain::Present）。</p>
-<p>使用（前后）两个缓冲区称为<strong>双缓冲（double buffering）</strong></p>
-<hr>
-<h1 id="深度缓冲区"><a href="#深度缓冲区" class="headerlink" title="深度缓冲区"></a>深度缓冲区</h1><p>常见的深度值范围在0.0到1.0之间，其中0.0表示离观察者最近的物体，1.0表示离观察者最远的物体。</p>
-<p>深度缓冲区中的每个元素与后台缓冲区中的每个像素一一对应（即，后台缓冲区的第ij个元素对应于深度缓冲区的第ij个元素）。所以，当后台缓冲区的分辨率为1280×1024时，在深度缓冲区中有1280×1024个深度元素。</p>
-<div class="note info modern"><p>深度缓存（depth buffering）== Z缓存（z-buffering）</p>
-</div>
-<hr>
-<h1 id="多重采样"><a href="#多重采样" class="headerlink" title="多重采样"></a>多重采样</h1><p>当无法提高显示器分辨率或分辨率不够高时，我们可以使用<strong>抗锯齿（antialiasing）</strong>技术。其中的一种技术叫做<strong>超级采样（supersampling）</strong>，它把后台缓冲和深度缓冲的大小提高到屏幕分辨率的4倍。3D场景会以这个更大的分辨率渲染到后台缓存中，当在屏幕上呈现后台缓冲时，后台缓冲会将4个像素的颜色取平均值后得到一个像素的最终颜色。</p>
-<p>Direct3D支持另一种称为多重采样（multisampling）的抗锯齿技术，它通过对一个像素的子像素进行采样计算出该像素的最终颜色，比超级采样节省资源。假如我们使用的是4X多重采样（每个像素采样4个邻接像素），多重采样仍然会使用屏幕分辨率4倍大小的后台缓冲和深度缓冲，但是，不像超级采样那样计算每个子像素的颜色，而是只计算像素中心颜色一次，然后基于子像素的可见性（基于子像素的深度/模板测试）和范围（子像素中心在多边形之外还是之内）共享颜色信息。</p>
-]]></content>
-      <categories>
-        <category>Render</category>
-      </categories>
-      <tags>
-        <tag>Render</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Matrix algebra in CG</title>
-    <url>/2021/09/18/DirectX11_2/</url>
-    <content><![CDATA[<h1 id="矩阵加法"><a href="#矩阵加法" class="headerlink" title="矩阵加法"></a>矩阵加法</h1><p>略</p>
-<hr>
-<h1 id="矩阵乘法"><a href="#矩阵乘法" class="headerlink" title="矩阵乘法"></a>矩阵乘法</h1><p>略</p>
-<hr>
-<h1 id="转置矩阵"><a href="#转置矩阵" class="headerlink" title="转置矩阵"></a>转置矩阵</h1><p>对一个矩阵的行和列进行互换，即可得到该矩阵的转置（transpose）矩阵。一个m×n矩阵的转置矩阵是一个n×m矩阵。我们将矩阵M的转置矩阵记作M<sup>T</sup>。</p>
-<p>矩阵转置有以下有用的特点：</p>
-<p>1．(A+B)<sup>T</sup>＝A<sup>T</sup>+B<sup>T</sup></p>
-<p>2．(cA)<sup>T</sup>=cA<sup>T</sup></p>
-<p>3．(AB)<sup>T</sup>=B<sup>T</sup>A<sup>T</sup></p>
-<p>4．(A<sup>T</sup>)<sup>T</sup>=A</p>
-<p>5．(A-1)<sup>T</sup>=(A<sup>T</sup>)-1</p>
-<hr>
-<h1 id="单位矩阵"><a href="#单位矩阵" class="headerlink" title="单位矩阵"></a>单位矩阵</h1><p>单位矩阵是一个正方形矩阵，它除了对角线上的元素为1外，其他元素均为0。</p>
-<hr>
-<h1 id="行列式"><a href="#行列式" class="headerlink" title="行列式"></a>行列式</h1><p>略</p>
-<hr>
-<h1 id="伴随矩阵"><a href="#伴随矩阵" class="headerlink" title="伴随矩阵"></a>伴随矩阵</h1><p>略</p>
-<hr>
-<h1 id="逆矩阵"><a href="#逆矩阵" class="headerlink" title="逆矩阵"></a>逆矩阵</h1><p>矩阵代数没定义除法运算，但是它定义了一种乘法的逆（inverse）运算。下面的列表总结了有关逆运算的要点：</p>
-<p>1．只有正方形矩阵能做逆运算；所以，当我们说求逆矩阵时是假设我们正在处理的是一个正方形矩阵。</p>
-<p>2．一个n×n矩阵M的逆矩阵仍然是一个n×n矩阵，记作M<sup>-1</sup>。</p>
-<p>3．不是所有的正方形矩阵都有逆矩阵。有逆矩阵的正方形矩阵称为可逆（invertible）矩阵，没有逆矩阵的称为单调（singular）矩阵。</p>
-<p>4．如果存在逆矩阵，则该逆矩阵是唯一的。</p>
-<p>5．将一个矩阵与它的逆矩阵相乘，其结果必定为单位矩阵：MM<sup>-1</sup>=M<sup>-1</sup>M=I。注意，矩阵与它的逆矩阵的相乘次序可以互换，这是矩阵乘法中的一个特例。</p>
-<hr>
-<h1 id="变换"><a href="#变换" class="headerlink" title="变换"></a>变换</h1><p> <i class="fas fa-link" style="color:#ffb6c1"> <a href="https://www.bilibili.com/video/BV1X7411F744?p=3">GAMES101-现代计算机图形学入门-闫令琪-Lecture 03-04</a></i></p>
-]]></content>
-      <categories>
-        <category>Render</category>
-      </categories>
-      <tags>
-        <tag>Render</tag>
-        <tag>Fundamentals of CG</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>计算机图形学基础-线性变换</title>
     <url>/2022/03/01/Fundamentals_1/</url>
     <content><![CDATA[<h1 id="2D线性变换"><a href="#2D线性变换" class="headerlink" title="2D线性变换"></a>2D线性变换</h1><p>对向量\begin{bmatrix}<br>    x \\<br>    y \\<br>\end{bmatrix}的线性变换</p>
@@ -319,35 +114,19 @@ y'' = m_{21}x + m_{22}y</script><p>将其转化为3维矩阵形式：</p>
       </tags>
   </entry>
   <entry>
-    <title>Vulkan初始化</title>
-    <url>/2021/09/15/Vulkan_1/</url>
-    <content><![CDATA[<h2 id="Instance"><a href="#Instance" class="headerlink" title="Instance"></a>Instance</h2><p>&emsp;&emsp;Instance可以理解与Vulkan交互的一个桥梁。创建Instance需要向驱动程序提供一些应用层信息。例如版本号，名称</p>
-<h2 id="扩展"><a href="#扩展" class="headerlink" title="扩展"></a>扩展</h2><p>&emsp;&emsp;创建Instance之前，需要指定扩展信息。扩展可以理解为插件，不同厂商支持不同vulkan中的实例创建,一般都是采用Info结构体的形式,通过填写结构体来完成实例的创建</p>
-<h2 id="选择GPU物理设备并创建逻辑设备"><a href="#选择GPU物理设备并创建逻辑设备" class="headerlink" title="选择GPU物理设备并创建逻辑设备"></a>选择GPU物理设备并创建逻辑设备</h2><p>&emsp;&emsp;创建 VkInstance 后，我们需要查询系统中的显卡设备，选择一个支持我们需要的特性的设备使用,在选择物理设备后,我们需要一个逻辑设备来作为和物理设备交互的接口</p>
-<h2 id="校验层"><a href="#校验层" class="headerlink" title="校验层"></a>校验层</h2><p>&emsp;&emsp;很多很基本的错误都没有被 Vulkan 显式地处理，遇到错误程序会直接崩溃或者发生未被明确定义的行为。Vulkan 引入了校验层来解决这个问题</p>
-<p>校验层常被用来做下面的工作:</p>
-<ul>
-<li>检测参数值是否合法</li>
-<li>追踪对象的创建和清除操作，发现资源泄漏问题</li>
-<li>追踪调用来自的线程，检测是否线程安全。</li>
-<li>将 API 调用和调用的参数写入日志</li>
-<li>追踪 API 调用进行分析和回放</li>
-</ul>
-<h2 id="SwapChain"><a href="#SwapChain" class="headerlink" title="SwapChain"></a>SwapChain</h2><p>&emsp;&emsp;交换链本质上是一个包含了若干等待呈现的图像的队列,是一系列最终会展示给用户的图像的集合。</p>
-<h2 id="图像视图"><a href="#图像视图" class="headerlink" title="图像视图"></a>图像视图</h2><p>&emsp;&emsp;描述了访问图像的方式以及要访问图像的哪个部分,交换链中的每一个图像都需要为其创建图像视图对象需要为交换链中的每个图像创建对应的帧缓冲，在渲染时，渲染到对应的帧缓冲上。</p>
-<h2 id="渲染和呈现"><a href="#渲染和呈现" class="headerlink" title="渲染和呈现"></a>渲染和呈现</h2><ul>
-<li>从交换链获取一张图像</li>
-<li>对帧缓冲附着执行指令缓冲中的渲染指令</li>
-<li>返回渲染后的图像到交换链进行呈现操作<br>两种用于同步交换链事件的方式：栅栏 (fence) 和信号量 (semaphore)。</li>
-</ul>
+    <title>OpenGL中的VAO和VBO</title>
+    <url>/2022/02/22/vaovbo/</url>
+    <content><![CDATA[<p>作者：禾惠<br>链接：<a href="https://www.zhihu.com/question/30095978/answer/87995822">https://www.zhihu.com/question/30095978/answer/87995822</a><br>来源：知乎<br>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。</p>
+<p>OpenGL在画画的时候，要用到很多的信息，如顶点的坐标、纹理、颜色等等…. </p>
+<p>假如一个顶点包含了坐标和颜色的信息，那么这个顶点处的数据格式可能如下：x, y, z, r, g, b这些值会被存储在一个叫VBO (vertex buffer object)的地方。</p>
+<p>因而，可以把VBO理解成一个数据区域，这里面存放了渲染所需要的一切信息。但需要注意的是，数据在VBO里面的时候，OpenGL是并不知道这里面的每个数据所代表的具体含义的，只是一堆数值罢了。</p>
+<p>这时候，VAO(vertex array object)就派上用场了。VAO指定了读取VBO的方式~~假如VBO里面现在存放了如下的内容：x0, y0, z0, r0, g0, b0x1, y1, z1, r1, g1, b1x2, y2, z2, r2, g2, b2VAO可以定义一种格式说，我每次只取VBO里面的x,y,z的值；也可以定义一种格式说，每次只取VBO里面的r,g,b的值。这样我们就可以在渲染的时候，绑定不同的VAO，实现按照不同的格式将VBO里面的东西渲染出来~通过定义VBO里面数据存放的方式、VAO的格式以及合适的GLSL 语言，就能够灵活地画出我们所需要的各种图形。</p>
 ]]></content>
       <categories>
         <category>Render</category>
       </categories>
       <tags>
         <tag>Render</tag>
-        <tag>vulkan</tag>
-        <tag>随笔</tag>
       </tags>
   </entry>
   <entry>
@@ -372,226 +151,23 @@ $\begin{equation} 𝑓(𝑙,𝑣) = \frac{𝑑𝐿0(𝑣)}{𝑑𝐸(𝑙)} \end{
       </tags>
   </entry>
   <entry>
-    <title>C++中的指针和地址</title>
-    <url>/2021/09/21/cpp_1_pointer/</url>
-    <content><![CDATA[<h1 id="地址和指针"><a href="#地址和指针" class="headerlink" title="地址和指针"></a>地址和指针</h1><p>通过<code>&amp;</code>获取地址:<br><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">int</span> i = <span class="number">1</span>;</span><br><span class="line">    cout&lt;&lt;&amp;i&lt;&lt;endl;<span class="comment">//通过操作符&amp;获取i在内存中的地址,然后输出在屏幕上</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>输出<code>00000060464FF574</code></p>
-<p>指针就是用来保存内存地址的变量,每个被定义的变量都有自己的地址,因此可以使用指针来存放任何已被定义的变量的地址,即使没有被赋值</p>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> a;<span class="comment">//定义一个变量a</span></span><br><span class="line"><span class="keyword">int</span> *p;<span class="comment">//定义一个指针p</span></span><br><span class="line">p=&amp;a;<span class="comment">//将变量a的地址取出,赋给变量p,这样变量p保存的就是变量a的地址</span></span><br><span class="line">cout&lt;&lt;&amp;a&lt;&lt;endl;<span class="comment">//输出a的地址</span></span><br><span class="line">cout&lt;&lt;p&lt;&lt;endl;<span class="comment">//输出变量p的值,也即是a的地址</span></span><br></pre></td></tr></table></figure>
-<p>输出:<br><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">00000086EA92F784</span><br><span class="line">00000086EA92F784</span><br></pre></td></tr></table></figure></p>
-<h2 id="常量指针"><a href="#常量指针" class="headerlink" title="常量指针"></a>常量指针</h2><p><code>int *const p;//指针只能初始化,不可改变,但可以改变其指向的整数</code></p>
-<h2 id="指向常量的指针"><a href="#指向常量的指针" class="headerlink" title="指向常量的指针"></a>指向常量的指针</h2><p><code>const int *p;指向的整数不可修改,指针可以被修改</code></p>
-<h2 id="指向常量的常指针"><a href="#指向常量的常指针" class="headerlink" title="指向常量的常指针"></a>指向常量的常指针</h2><p><code>const int * const p;//不解释</code></p>
-<h2 id="空指针"><a href="#空指针" class="headerlink" title="空指针"></a>空指针</h2><p>void * 可以指向任何类型对象的地址，表示这是一个指针，和地址值有关，但不知道存储在此地址上的对象的类型，所以在取空类型指针所指向的值的时候，应将空类型指针转换为对应的指针类型</p>
-<h3 id="空指针支持的操作"><a href="#空指针支持的操作" class="headerlink" title="空指针支持的操作"></a>空指针支持的操作</h3><ul>
-<li><p>与另一个指针比较</p>
-</li>
-<li><p>向函数传递void *指针</p>
-</li>
-<li><p>在函数里返回void *指针</p>
-</li>
-<li><p>给另一个void *指针赋值</p>
-</li>
-</ul>
-<h3 id="空指针不支持的操作"><a href="#空指针不支持的操作" class="headerlink" title="空指针不支持的操作"></a>空指针不支持的操作</h3><ul>
-<li><p>不支持解引用，不能获取指向对象的值</p>
-</li>
-<li><p>不能进行指针运算，比如移位操作</p>
-</li>
-</ul>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	<span class="keyword">double</span> a = <span class="number">3.14</span>;</span><br><span class="line">	<span class="keyword">double</span> *p1 = &amp;a;</span><br><span class="line">	<span class="keyword">void</span> *p2 = &amp;a;                 <span class="comment">//正确，将一个double型数据的地址赋给一个空类型指针</span></span><br><span class="line">	<span class="keyword">void</span> *p3 = p1;                 <span class="comment">//正确，将一个double型指针赋给一个空类型指针</span></span><br><span class="line"> </span><br><span class="line">	<span class="comment">//double b = *p2;              //错误，无法对一个空类型指针解引用</span></span><br><span class="line">	<span class="keyword">double</span> d = *((<span class="keyword">double</span>*)p2);     <span class="comment">//正确，先将空类型指针强转为double型指针，然后再解引用</span></span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;%f\n&quot;</span>, d);</span><br><span class="line"> </span><br><span class="line">	<span class="keyword">int</span> array[<span class="number">5</span>] = &#123; <span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>,<span class="number">4</span>,<span class="number">5</span> &#125;;</span><br><span class="line">	<span class="keyword">void</span> *p4 = array;</span><br><span class="line">	<span class="comment">//for (int i = 0; i &lt; 5; i++)</span></span><br><span class="line">	<span class="comment">//&#123;</span></span><br><span class="line">	<span class="comment">//	printf(&quot;%d  &quot;, *(p4 + i)); //错误，不能对空类型指针进行移位操作</span></span><br><span class="line">	<span class="comment">//&#125;</span></span><br><span class="line"> </span><br><span class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">5</span>; i++)</span><br><span class="line">	&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;%d  &quot;</span>, *((<span class="keyword">int</span>*)p4 + i));   <span class="comment">//正确，先将空类型指针强转为int型指针，然后再解引用</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line"> </span><br><span class="line">	<span class="built_in">system</span>(<span class="string">&quot;pause&quot;</span>);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="野指针"><a href="#野指针" class="headerlink" title="野指针"></a>野指针</h2><p>指针p被free或者delete之后，只是把指针所指的内存释放掉了，没有改变指针的值或没有置为NULL，此时，p沦落为野指针<br><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">char</span> str1[] = <span class="string">&quot;Hello&quot;</span>;</span><br><span class="line"><span class="keyword">char</span> str2[] = <span class="string">&quot;world&quot;</span>;</span><br><span class="line"><span class="keyword">char</span> *pd = (<span class="keyword">char</span>*)<span class="built_in">malloc</span>(<span class="number">100</span>);</span><br><span class="line"><span class="built_in">strcpy</span>(pd, str1);         <span class="comment">//正确，将字符串str1复制到指定的内存中去</span></span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%p\n&quot;</span>, pd);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%s\n&quot;</span>, pd);</span><br><span class="line"> </span><br><span class="line"><span class="built_in">free</span>(pd);</span><br><span class="line"><span class="keyword">if</span> (pd != <span class="literal">NULL</span>)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">strcpy</span>(pd, str2);    <span class="comment">//错误，将字符串str2放到没有经过系统指定的内存中去</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%p\n&quot;</span>, pd);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%s\n&quot;</span>, pd);</span><br></pre></td></tr></table></figure></p>
-<h2 id="this指针"><a href="#this指针" class="headerlink" title="this指针"></a>this指针</h2><p>this是一个 const 指针，是所有成员函数的隐含参数。因此，在成员函数内部，它可以用来指向调用对象。</p>
-<ul>
-<li><p>this只能在成员函数中使用<br>成员函数默认第一个参数为T* const register this。<br>（友元函数，全局函数不是成员函数）</p>
-</li>
-<li><p>this指针不能再静态函数中使用<br>静态函数如同静态变量一样，他不属于具体的哪一个对象，静态函数表示了整个类范围意义上的信息，而this指针却实实在在的对应一个对象，所以this指针不能被静态函数使用。</p>
-</li>
-<li><p>this指针的创建<br>this指针在成员函数的开始执行前构造的，在成员的执行结束后清除。</p>
-</li>
-<li><p>this指针只有在成员函数中才有定义。<br>创建一个对象后，不能通过对象使用this指针。也无法知道一个对象的this指针的位置（只有在成员函数里才有this指针的位置）。当然，在成员函数里，你是可以知道this指针的位置的（可以&amp;this获得)，也可以直接使用的。</p>
-</li>
-</ul>
-<hr>
-<h1 id="栈和堆"><a href="#栈和堆" class="headerlink" title="栈和堆"></a>栈和堆</h1><h2 id="数据在内存中的存放形式"><a href="#数据在内存中的存放形式" class="headerlink" title="数据在内存中的存放形式"></a>数据在内存中的存放形式</h2><ul>
-<li>栈区(stack):由编译器自动分配并释放,该区域一般存放函数的参数值,局部变量的值等</li>
-<li>堆区(heap):一般由程序员分配释放,若程序员不释放,程序结束时<code>可能</code>由操作系统回收</li>
-<li>寄存器区:用来保存栈顶指针和指令指针</li>
-<li>全局区(静态区)(static):全局变量和静态变量的存储是放在一块的,初始化的全局变量和静态变量在一块区域,未初始化的全局变量和未初始化的静态变量在相邻的另一块区域.程序结束后由系统释放</li>
-<li>文字常量区:常量字符串存储在此,程序结束后由系统释放</li>
-<li>程序代码区:存放函数体的二进制代码</li>
-</ul>
-<h2 id="堆和栈的不同之处"><a href="#堆和栈的不同之处" class="headerlink" title="堆和栈的不同之处"></a>堆和栈的不同之处</h2><ul>
-<li>内存申请的方式不同</li>
-<li>系统响应的不同</li>
-<li>空间大小的不同</li>
-<li>执行效率的不同</li>
-<li>执行函数时的不同</li>
-</ul>
-<p>栈内存小,效率高,存储的数据仅在函数内有效</p>
-<p>堆的可存储空间可以非常大,但容易产生内存碎片,效率低,但灵活性高(堆是不连续的内存区域,各块区域由链表串联起来)</p>
-<hr>
-<h1 id="指针和堆"><a href="#指针和堆" class="headerlink" title="指针和堆"></a>指针和堆</h1><h2 id="用指针创建堆中空间"><a href="#用指针创建堆中空间" class="headerlink" title="用指针创建堆中空间"></a>用指针创建堆中空间</h2><p>堆中的每个内存单元都是匿名的,因此必须先在堆中申请一个内存单元的地址,然后把它保存在一个指针中,这样,只有使用该指针才可以访问到该内存单元的数据,这样可以避免一些试图修改它的非法操作</p>
-<p>为此,首先创建一个堆,然后定义一个指向该堆的指针,在c++中使用关键字new创建一个堆并分配内存,在new后面跟一个要分配的对象类型,编译器根据这个类型来分配内存</p>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p;<span class="comment">//定义了一个指向整型的指针变量p</span></span><br><span class="line">p = <span class="keyword">new</span> <span class="keyword">int</span>;<span class="comment">//用new在堆中创建一个int类型的内存区域,然后将该区域的内存地址赋给指针变量p,这样p所指向的就是这块新建的内存区域</span></span><br><span class="line">*p = <span class="number">4</span>;<span class="comment">//将4赋给该存储区</span></span><br><span class="line">cout&lt;&lt;*p;<span class="comment">//输出该存储区中保存的数据4</span></span><br></pre></td></tr></table></figure>
-<h2 id="用指针删除堆中空间"><a href="#用指针删除堆中空间" class="headerlink" title="用指针删除堆中空间"></a>用指针删除堆中空间</h2><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line"><span class="keyword">delete</span> p;<span class="comment">//删除指针指向的内存区域</span></span><br><span class="line">p = <span class="number">0</span>;<span class="comment">//防止出现野指针</span></span><br></pre></td></tr></table></figure>
-<hr>
-<h1 id="动态内存"><a href="#动态内存" class="headerlink" title="动态内存"></a>动态内存</h1><h2 id="内存泄漏"><a href="#内存泄漏" class="headerlink" title="内存泄漏"></a>内存泄漏</h2><p>假如没有删除一个指针就对其重新赋值,如</p>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br></pre></td></tr></table></figure>
-<p>就会造成内存泄漏,因为指针p一开始指向了一块内存空间,之后又将一块新的内存空间地址赋给了p,这样一开始那块内存空间就无法使用了,因为指向它的指针已经指向了另一块空间</p>
-<p>正确操作:</p>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line"><span class="keyword">delete</span> p;</span><br><span class="line">p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br></pre></td></tr></table></figure>
-<h2 id="访问堆中的数据成员"><a href="#访问堆中的数据成员" class="headerlink" title="访问堆中的数据成员"></a>访问堆中的数据成员</h2><p>假如要访问对象的数据成员和函数,我们使用成员运算符<code>.</code><br>如<code>a.get();</code></p>
-<p>假如是在堆中创建的对象,而该对象的内存地址保存在指针变量p中,那么就是:<br><code>(*p).get();</code><br>使用括号是为了保证先使用<code>*</code>号读取p的内存地址,然后再使用成员运算符<code>.</code>来访问成员函数<code>get()</code><br>而C++专门为用指针来间接访问对象的成员设置了一个运算符<code>-&gt;</code>,利用该符号可以实现读取对象的内存地址并访问该对象的成员的作用<br><code>p-&gt;get();</code></p>
-<hr>
-<h1 id="指针运算"><a href="#指针运算" class="headerlink" title="指针运算"></a>指针运算</h1><h2 id="指针的加减运算"><a href="#指针的加减运算" class="headerlink" title="指针的加减运算"></a>指针的加减运算</h2><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">p++;<span class="comment">//内存地址自加,由于p指向的是int型变量,因此执行加1操作,会将原来的内存地址增加4个字节</span></span><br><span class="line">p--;<span class="comment">//内存地址自减,由于...</span></span><br></pre></td></tr></table></figure>
-<p>示例:<br><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">int</span>* p;</span><br><span class="line">    p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">    cout &lt;&lt; p &lt;&lt; endl;<span class="comment">//000002013A5865D0</span></span><br><span class="line">    cout &lt;&lt; ++p &lt;&lt; endl;<span class="comment">//000002013A5865D4</span></span><br><span class="line">    cout &lt;&lt; --p &lt;&lt; endl;<span class="comment">//000002013A5865D0</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h2 id="指针的赋值运算"><a href="#指针的赋值运算" class="headerlink" title="指针的赋值运算"></a>指针的赋值运算</h2><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line"><span class="keyword">int</span> *p1 = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">cout &lt;&lt; p &lt;&lt; endl;<span class="comment">//000002CBB35865D0</span></span><br><span class="line">cout &lt;&lt; p1 &lt;&lt; endl;<span class="comment">//000002CBB3585380</span></span><br><span class="line">p=p1;</span><br><span class="line">cout &lt;&lt; p &lt;&lt; endl;<span class="comment">//000002CBB3585380</span></span><br></pre></td></tr></table></figure>
-<h2 id="指针的相减运算"><a href="#指针的相减运算" class="headerlink" title="指针的相减运算"></a>指针的相减运算</h2><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line"><span class="keyword">int</span> *p1 = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">cout &lt;&lt; p &lt;&lt; endl;<span class="comment">//00000233D1D765D0</span></span><br><span class="line">cout &lt;&lt; p1 &lt;&lt; endl;<span class="comment">//00000233D1D7F300</span></span><br><span class="line">cout &lt;&lt; p-p1 &lt;&lt; endl;<span class="comment">//-9036(两块内存的地址差)</span></span><br></pre></td></tr></table></figure>
-<h2 id="指针的比较运算"><a href="#指针的比较运算" class="headerlink" title="指针的比较运算"></a>指针的比较运算</h2><p>内存地址大小的比较</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">if(p&lt;p1)</span><br><span class="line">return ;</span><br></pre></td></tr></table></figure>
-<p>具体代码略</p>
-<hr>
-<h1 id="为什么使用指针"><a href="#为什么使用指针" class="headerlink" title="为什么使用指针"></a>为什么使用指针</h1><p>在操作大型数据和类时,由于指针可以通过内存地址直接访问数据,可避免在程序中复制大量的代码,因此指针的效率高</p>
-<ul>
-<li>处理堆中存放的大型数据</li>
-<li>快速访问类的成员数据和函数</li>
-<li>以别名的方式向函数传递参数</li>
-</ul>
-]]></content>
-      <categories>
-        <category>c++</category>
-      </categories>
-      <tags>
-        <tag>c++</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>C++中的引用</title>
-    <url>/2021/09/21/cpp_2_reference/</url>
-    <content><![CDATA[<p>有空再写</p>
-]]></content>
-      <categories>
-        <category>c++</category>
-      </categories>
-      <tags>
-        <tag>c++</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>C++中的重载</title>
-    <url>/2021/09/21/cpp_3_overload/</url>
-    <content><![CDATA[<p>有空再写</p>
-]]></content>
-      <categories>
-        <category>c++</category>
-      </categories>
-      <tags>
-        <tag>c++</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>C++中的继承</title>
-    <url>/2021/09/22/cpp_4_inheritance/</url>
-    <content><![CDATA[<h1 id="基类和派生类"><a href="#基类和派生类" class="headerlink" title="基类和派生类"></a>基类和派生类</h1><p>把在原有类的基础上建立新类并且添加新特征的过程叫做<code>类的派生</code>,把原有的类叫做<code>基类</code>或<code>父类</code>,把新建立的类叫做<code>派生类</code>或<code>子类</code></p>
-<p>只有一个基类的继承叫<code>单一继承</code>,有多个基类的继承叫<code>多重继承</code></p>
-<p>当声明一个派生类时,可通过在类的名字后面加一个<code>:</code>来表示是从哪个类派生出来</p>
-<p>单一继承形式:<br><code>关键字Class 派生类名 : 派生类型 基类名</code></p>
-<p>多重继承形式:<br><code>class 类名:访问权限 类名1,访问权限 类名2,...</code></p>
-<p>派生类的构造函数<br><code>派生类名::派生类名(参数):基类名(参数),基类2名(参数),...</code></p>
-<h2 id="访问权限"><a href="#访问权限" class="headerlink" title="访问权限"></a>访问权限</h2><h3 id="公有派生"><a href="#公有派生" class="headerlink" title="公有派生"></a>公有派生</h3><ul>
-<li>基类的公有成员(public)在派生类中仍然是公有的</li>
-<li>公有派生的前提下,基类的保护成员(protect)在派生类中仍然是被保护的</li>
-<li>公有派生的私有成员(private)在派生类中无法访问</li>
-<li>派生的对象可以赋给基类的对象<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">father a;</span><br><span class="line">son b;</span><br><span class="line">a = b;</span><br></pre></td></tr></table></figure></li>
-<li>派生类的对象可以初始化基类的引用<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">son b;</span><br><span class="line">father &amp;aa = b;</span><br></pre></td></tr></table></figure></li>
-<li>派生类可以将对象的地址赋值给基类的指针<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">son b;</span><br><span class="line">father *aa=&amp;b;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3 id="私有派生"><a href="#私有派生" class="headerlink" title="私有派生"></a>私有派生</h3><p>略</p>
-]]></content>
-      <categories>
-        <category>c++</category>
-      </categories>
-      <tags>
-        <tag>c++</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>光源</title>
-    <url>/2021/09/25/light/</url>
-    <content><![CDATA[<h1 id="平行光"><a href="#平行光" class="headerlink" title="平行光"></a>平行光</h1><p>当一个光源处于很远的地方时，来自光源的每条光线就会近似于互相平行。不论物体和/或者观察者的位置，看起来好像所有的光都来自于同一个方向。当我们使用一个假设光源处于无限远处的模型时，它就被称为<code>定向光</code>，因为它的所有光线都有着相同的方向，它与光源的位置是没有关系的</p>
-<p>可以定义一个光线方向向量而不是位置向量来模拟一个定向光。着色器的计算基本保持不变，但这次我们将直接使用光的direction向量而不是通过direction来计算lightDir向量</p>
-<p><code>vec3 lightDir = normalize(-light.direction);</code></p>
-<p>注意我们首先对light.direction向量取反。我们目前使用的光照计算需求一个从片段至光源的光线方向，但人们更习惯定义定向光为一个从光源出发的全局方向。所以我们需要对全局光照方向向量取反来改变它的方向，它现在是一个指向光源的方向向量</p>
-<h1 id="点光源"><a href="#点光源" class="headerlink" title="点光源"></a>点光源</h1><p>定向光对于照亮整个场景的全局光源是非常棒的，但除了定向光之外我们也需要一些分散在场景中的<code>点光源(Point Light)</code>。点光源是处于世界中某一个位置的光源，它会朝着所有方向发光，但光线会随着距离逐渐衰减。想象作为投光物的灯泡和火把，它们都是点光源。</p>
-<p>随着光线传播距离的增长逐渐削减光的强度通常叫做衰减(Attenuation)。</p>
-<p>在现实世界中，灯在近处通常会非常亮，但随着距离的增加光源的亮度一开始会下降非常快，但在远处时剩余的光强度就会下降的非常缓慢</p>
-<p>下面这个公式根据片段距光源的距离计算了衰减值，之后我们会将它乘以光的强度向量：</p>
-<center>
-$\begin{equation} F_{att} = \frac{1.0}{K_c + K_l * d + K_q * d^2} \end{equation}$
-</center>
-
-<p>在这里d代表了片段距光源的距离。接下来为了计算衰减值，我们定义3个（可配置的）项：常数项Kc、一次项Kl和二次项Kq。</p>
-<ul>
-<li>常数项通常保持为1.0，它的主要作用是保证分母永远不会比1小，否则的话在某些距离上它反而会增加强度，这肯定不是我们想要的效果。</li>
-<li>一次项会与距离值相乘，以线性的方式减少强度。</li>
-<li>二次项会与距离的平方相乘，让光源以二次递减的方式减少强度。二次项在距离比较小的时候影响会比一次项小很多，但当距离值比较大的时候它就会比一次项更大了。</li>
-</ul>
-<p>由于二次项的存在，光线会在大部分时候以线性的方式衰退，直到距离变得足够大，让二次项超过一次项，光的强度会以更快的速度下降。这样的结果就是，光在近距离时亮度很高，但随着距离变远亮度迅速降低，最后会以更慢的速度减少亮度</p>
-<h1 id="聚光"><a href="#聚光" class="headerlink" title="聚光"></a>聚光</h1><p>聚光是位于环境中某个位置的光源，它只朝一个特定方向而不是所有方向照射光线。这样的结果就是只有在聚光方向的特定半径内的物体才会被照亮，其它的物体都会保持黑暗。聚光很好的例子就是路灯或手电筒。</p>
-]]></content>
-      <categories>
-        <category>Render</category>
-      </categories>
-      <tags>
-        <tag>Render</tag>
-        <tag>Fundamentals of CG</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>简述渲染管线</title>
-    <url>/2021/08/01/pipline/</url>
-    <content><![CDATA[<p>&emsp;&emsp;渲染管线主要分为三个阶段：应用程序阶段、几何阶段、光栅化阶段。</p>
-<ul>
-<li>应用程序阶段（CPU负责）：主要和CPU、内存打交道，诸如碰撞检测、场景图建立、视锥裁剪等算法在此阶段进行。在该阶段的最后，几何体数据（顶点坐标、法向量、纹理坐标等）通过数据总线传送到图形硬件。</li>
-<li>几何阶段（GPU负责）：主要负责顶点坐标变换、光照、裁剪、投影以及屏幕映射。在该阶段的最后，得到经过变换和投影之后的顶点坐标、颜色、纹理坐标。</li>
-<li>光栅化阶段（GPU负责）：基于几何阶段输出的数据，为像素配色，最终得到最终渲染的图像。</li>
-</ul>
-<hr>
-<h1 id="几何阶段"><a href="#几何阶段" class="headerlink" title="几何阶段"></a>几何阶段</h1><ol>
-<li><p>从 object space 到 world space<br>&emsp;&emsp;object space coordinate 与其他物体没有任何参照关系，注意，这个概念非常重要，它是将 object space coordinate 和 worldspace coordinate 区分开来的关键。无论在现实世界，还是在计算机的虚拟空间中，物体都必须和一个固定的坐标原点进行参照才能确定自己所在的位置，这是world space coordinate<br>的实际意义所在。<br>&emsp;&emsp;我们将一个模型导入计算机后，就应该给它一个相对于坐标原点的位置，那么这个位置就是 world space coordinate，从 object space coordinate 到world space coordinate 的变换过程由一个四阶矩阵控制，通常称之为 world matrix。<br>&emsp;&emsp;光照计算通常是在 world coordinate space（世界坐标空间）中进行的，这也符合人类的生活常识。当然，也可以在 eye coordinate space 中得到相同的光照效果，因为，在同一观察空间中物体之间的相对关系是保存不变的。<br>&emsp;&emsp;顶点法向量在模型文件中属于 object space，在 GPU 的顶点程序中必须将法向量转换到 world space 中才能使用。<br>&emsp;&emsp;如同必须将顶点坐标从 object space 转换到 world space 中一样，但两者的转换矩阵是不同的。</p>
- <div class="note warning modern"><p>法向量从 object space 到 world space 的转换矩阵是 world matrix 的转置矩阵的逆矩阵</p>
+    <title>Unity Shader常用函数及示例代码</title>
+    <url>/2021/10/21/shader_1/</url>
+    <content><![CDATA[<div class="note warning modern"><p>本文代码部分为CG语言</p>
 </div>
-</li>
-<li><p>从 world space 到 eye space<br>&emsp;&emsp;所谓 eye space，即以 camera（视点或相机）为原点，由视线方向、视角和远近平面，共同组成一个梯形体的三维空间，称之为 viewing frustum（视锥）。</p>
-</li>
-<li><p>从 eye space 到 project and clip space<br>&emsp;&emsp;一旦顶点坐标被转换到 eye space 中，就需要判断哪些点是视点可见的。位于 viewing frustum 梯形体以内的顶点，被认定为可见，而超出这个梯形体之外的场景数据，会被视点去除（Frustum Culling，也称之为视锥裁剪）。这一步通常称之为“clip（裁剪）”，识别指定区域内或区域外的图形部分的过程称之为裁剪算法。</p>
-</li>
-<li><p>Primitive Assembly &amp;&amp; Triangle setup</p>
-<ul>
-<li>Primitive Assembly<br>&emsp;&emsp;图元装配即将顶点根据primitive（原始的连接关系）,还原出网格结构。网格由顶点和索引组成，在之前的流水线中是对顶点的处理，在这个阶段是根据索引将顶点链接在一起，组成线、面单元。之后就是对超出屏幕外的三角形进行裁剪，想象一下：一个三角形其中一个顶点在画面外，另外两个顶点在画面内，这是我们在屏幕上看到的就是一个四边形。然后将该四边形切成两个小的三角形。</li>
-<li>Triangle Setup<br>&emsp;&emsp;处理三角形的过程被称为 Triangle  Setup。到目前位置，我们得到了一堆在屏幕坐标上的三角面片，这些面片是用于做光栅化的（Rasterizing）。</li>
-</ul>
-</li>
-</ol>
-<h1 id="光栅化阶段"><a href="#光栅化阶段" class="headerlink" title="光栅化阶段"></a>光栅化阶段</h1><ul>
-<li>Rasterization<br>&emsp;&emsp;光栅化是将一个图元转变为一个二维图像的过程。二维图像上每个点都包含了颜色、深度和纹理数据。将该点和相关信息叫做一个片元（fragment）。光栅化的目的，是找出一个几何单元（比如三角形）所覆盖的像素。</li>
-<li>Pixel Operation<br>&emsp;&emsp;Pixel operation 又称为 Raster Operation，其目的是计算出每个像素的颜色值。Pixel operation包含以下几个作用：<ol>
-<li>消除遮挡面；</li>
-<li>Texture operation，纹理操作，也就是根据像素的纹理坐标，查询对应的纹理值；</li>
-<li>Blending 混色，根据目前已经画好的颜色，与正在计算的颜色的透明度（Alpha），混合为两种颜色，作为新的颜色输出。通常称之为 alpha 混合技术。 当在屏幕上绘制某个物体时，与每个像素都相关联的哟一个 RGB 颜色值和一个 Z 缓冲器深度值，另外一个称为是 alpha 值，可以根据需要生成并存储，用来描述给定像素处的物体透明度。如果 alpha 值为 1.0，则表示物体不透明如果值为 0，表示该物体是透明的。<div class="note info modern"><p>为了在场景中绘制透明物体，通常需要对物体进行排序。首先，绘制不透明的物体；然后，在不透明物体的上方，对透明物体按照由后到前的顺序进行混合处理。如果按照任意顺序进行混合，那么会产生严重的失真。既然需要排序，那么就需要用到 z buffer。</p>
-</div></li>
-<li>Filtering，将正在算的颜色经过某种 Filtering（滤波或者滤镜）后输出。可以理解为：经过一种数学运算后变成新的颜色值。<br>该阶段之后，像素的颜色值被写入帧缓存中。</li>
-</ol>
-</li>
-</ul>
-]]></content>
+<p>Unity官方手册上讲Shader程序嵌入的小片段是用Cg/HLSL编写的，从“CGPROGRAM”开始，到“CGEND”结束。所以，Unity官方主要是用Cg/HLSL编写Shader程序片段。Unity官方手册也说明对于Cg/HLSL程序进行扩展也可以使用GLSL，不过Unity官方建议使用原生的GLSL进行编写和测试。如果不使用原生GLSL，你就需要知道你的平台必须是Mac OS X、OpenGL ES 2.0以上的移动设备或者是Linux。在一般情况下Unity会把Cg/HLSL交叉编译成优化过的GLSL。因此我们有多种选择，我们既可以考虑使用Cg/HLSL，也可以使用GLSL。不过由于Cg/HLSL更好的跨平台性，更倾向于使用Cg/HLSL编写Shader程序。</p>
+<h3 id="顶点着色器："><a href="#顶点着色器：" class="headerlink" title="顶点着色器："></a>顶点着色器：</h3><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 将坐标转换到裁剪空间</span></span><br><span class="line">o.pos = <span class="built_in">UnityObjectToClipPos</span>(vertex);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 计算顶点的世界坐标</span></span><br><span class="line">float3 worldPos = <span class="built_in">mul</span>(_Object2World, vertex).xyz;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 计算世界空间下的视角方向</span></span><br><span class="line">float3 worldViewDir = <span class="built_in">normalize</span>(<span class="built_in">UnityWorldSpaceViewDir</span>(worldPos));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 世界空间下的法线</span></span><br><span class="line">float3 worldNormal = <span class="built_in">UnityObjectToWorldNormal</span>(normal);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 世界空间下的反射向量</span></span><br><span class="line">o.worldRefl = <span class="built_in">reflect</span>(-worldViewDir, worldNormal);</span><br></pre></td></tr></table></figure>
+<h3 id="片段着色器"><a href="#片段着色器" class="headerlink" title="片段着色器"></a>片段着色器</h3><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 采样纹理并返回数据</span></span><br><span class="line">fixed4 col = <span class="built_in">tex2D</span>(_MainTex, i.uv);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 使用反射向量采样默认的反射立体纹理（unity_SpecCube0）</span></span><br><span class="line">half4 skyData = <span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, i.worldRefl);</span><br><span class="line"><span class="comment">// 解码cubemap的数据到具体显示的颜色</span></span><br><span class="line">half3 skyColor = <span class="built_in">DecodeHDR</span> (skyData, unity_SpecCube0_HDR);</span><br></pre></td></tr></table></figure>
+<hr>
+<h3 id="代码示例"><a href="#代码示例" class="headerlink" title="代码示例"></a>代码示例</h3><p><img src="https://s3.bmp.ovh/imgs/2021/11/643c64bb1a99f58e.png" alt=""></p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line">Shader <span class="string">&quot;Unlit/SkyReflection&quot;</span></span><br><span class="line">&#123;</span><br><span class="line">    SubShader</span><br><span class="line">    &#123;</span><br><span class="line">        Pass</span><br><span class="line">        &#123;</span><br><span class="line">            CGPROGRAM</span><br><span class="line">            <span class="meta">#<span class="meta-keyword">pragma</span> vertex vert</span></span><br><span class="line">            <span class="meta">#<span class="meta-keyword">pragma</span> fragment frag</span></span><br><span class="line">            <span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;UnityCG.cginc&quot;</span></span></span><br><span class="line"></span><br><span class="line">            <span class="class"><span class="keyword">struct</span> <span class="title">v2f</span> &#123;</span></span><br><span class="line">            	float3 normal:NORMAL;</span><br><span class="line">                half3 worldRefl : TEXCOORD0;</span><br><span class="line">                float4 pos : SV_POSITION;</span><br><span class="line">                float4 objectPOS:<span class="keyword">float</span>;</span><br><span class="line">            &#125;;</span><br><span class="line"></span><br><span class="line">            <span class="function">v2f <span class="title">vert</span> <span class="params">(float4 vertex : POSITION, float3 normal : NORMAL)</span></span></span><br><span class="line"><span class="function">            </span>&#123;</span><br><span class="line">                v2f o;</span><br><span class="line">                o.pos = <span class="built_in">UnityObjectToClipPos</span>(vertex);</span><br><span class="line">                o.normal=normal;</span><br><span class="line">                o.objectPOS=vertex;</span><br><span class="line">                <span class="keyword">return</span> o;</span><br><span class="line">            &#125;</span><br><span class="line">        </span><br><span class="line">            <span class="function">fixed4 <span class="title">frag</span> <span class="params">(v2f i)</span> : SV_Target</span></span><br><span class="line"><span class="function">            &#123;</span></span><br><span class="line">	            <span class="comment">//i.normal既是上图中的n。</span></span><br><span class="line">     			i.normal = <span class="built_in">UnityObjectToWorldNormal</span>(i.normal);</span><br><span class="line">				<span class="comment">//worldPos为上图中的P。</span></span><br><span class="line">                float3 worldPos = <span class="built_in">mul</span>(unity_ObjectToWorld, i.objectPOS).xyz;</span><br><span class="line">                <span class="comment">//worldViewDir为由P点射向camera的一条向量。</span></span><br><span class="line">                float3 worldViewDir = <span class="built_in">UnityWorldSpaceViewDir</span>(worldPos);</span><br><span class="line">                <span class="comment">//所以在reflect函数中要使用-worldViewDir，将方向颠倒过来，既成为了上图中的w。i.worldRefl既是</span></span><br><span class="line">	            <span class="comment">//上图中的r。</span></span><br><span class="line">                i.worldRefl = <span class="built_in">reflect</span>(-worldViewDir, i.normal);</span><br><span class="line">				<span class="comment">//进行立方体采样，既是根据上图中的r寻找立方盒上的点R。</span></span><br><span class="line">                half4 skyData = <span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, i.worldRefl);</span><br><span class="line">                half3 skyColor = <span class="built_in">DecodeHDR</span> (skyData, unity_SpecCube0_HDR);</span><br><span class="line">                fixed4 c = <span class="number">0</span>;</span><br><span class="line">                c.rgb = skyColor;</span><br><span class="line">                <span class="keyword">return</span> c;</span><br><span class="line">            &#125;</span><br><span class="line">            ENDCG</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line">Shader <span class="string">&quot;Unlit/DispersionBeta&quot;</span></span><br><span class="line">&#123;</span><br><span class="line">    Properties &#123;</span><br><span class="line">    &#125;</span><br><span class="line">    SubShader</span><br><span class="line">    &#123;</span><br><span class="line">        Pass</span><br><span class="line">        &#123;</span><br><span class="line">            CGPROGRAM</span><br><span class="line">            <span class="meta">#<span class="meta-keyword">pragma</span> vertex vert</span></span><br><span class="line">            <span class="meta">#<span class="meta-keyword">pragma</span> fragment frag</span></span><br><span class="line">            <span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;UnityCG.cginc&quot;</span></span></span><br><span class="line"></span><br><span class="line">            <span class="class"><span class="keyword">struct</span> <span class="title">v2f</span> &#123;</span></span><br><span class="line">                float3 normal:NORMAL;</span><br><span class="line">                float4 pos : SV_POSITION;</span><br><span class="line">                float4 objectPOS:<span class="keyword">float</span>;</span><br><span class="line">            &#125;;</span><br><span class="line"></span><br><span class="line">            <span class="function">v2f <span class="title">vert</span> <span class="params">(float4 vertex : POSITION, float3 normal : NORMAL)</span></span></span><br><span class="line"><span class="function">            </span>&#123;</span><br><span class="line">                v2f o;</span><br><span class="line">                o.pos = <span class="built_in">UnityObjectToClipPos</span>(vertex);</span><br><span class="line">                o.normal=normal;</span><br><span class="line">                o.objectPOS=vertex;</span><br><span class="line">                <span class="keyword">return</span> o;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="function">fixed4 <span class="title">frag</span> <span class="params">(v2f i)</span> : SV_Target</span></span><br><span class="line"><span class="function">            &#123;</span></span><br><span class="line">             <span class="keyword">float</span> dispersionFactor=<span class="number">1.0f</span>;  <span class="comment">//色散增强,1为不增强</span></span><br><span class="line">             <span class="comment">//真空--&gt;玻璃 折射率 1/1.5</span></span><br><span class="line">             <span class="comment">//红绿兰折射率：1.6473 ,1.6527 ,1.6726</span></span><br><span class="line">             <span class="comment">//红绿兰三色波长相对比率  0.9967/1/1.012</span></span><br><span class="line">             <span class="comment">//假设折射以绿光为基准</span></span><br><span class="line">             float3 etaRatio=<span class="built_in">float3</span>(<span class="number">0.9967f</span>*dispersionFactor,<span class="number">1.0f</span>,<span class="number">1.012f</span>*dispersionFactor)/<span class="number">1.5f</span>;</span><br><span class="line">             <span class="comment">//基础向量变换</span></span><br><span class="line">             i.normal = <span class="built_in">UnityObjectToWorldNormal</span>(i.normal);</span><br><span class="line">             float3 worldPos = <span class="built_in">mul</span>(unity_ObjectToWorld, i.objectPOS).xyz;</span><br><span class="line">             float3 worldViewDir = <span class="built_in">UnityWorldSpaceViewDir</span>(worldPos);</span><br><span class="line">             i.normal=<span class="built_in">normalize</span>(i.normal);</span><br><span class="line">             <span class="comment">//反射向量</span></span><br><span class="line">             float3 reflectVec=<span class="built_in">reflect</span>(-worldViewDir,i.normal);</span><br><span class="line">             <span class="comment">//折射向量</span></span><br><span class="line">             float3 refractionVec=<span class="built_in">normalize</span>(-worldViewDir);</span><br><span class="line">             <span class="comment">//折射色散向量</span></span><br><span class="line">             float3 tRed=<span class="built_in">refract</span>(refractionVec,i.normal,etaRatio.x);</span><br><span class="line">             float3 tGreen=<span class="built_in">refract</span>(refractionVec,i.normal,etaRatio.y);</span><br><span class="line">             float3 tBlue=<span class="built_in">refract</span>(refractionVec,i.normal,etaRatio.z);</span><br><span class="line">             <span class="comment">//反射向量采样天空盒</span></span><br><span class="line">             half4 skyData = <span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, reflectVec);</span><br><span class="line">             float4 reflectedColor=<span class="built_in">float4</span>(<span class="built_in">DecodeHDR</span> (skyData, unity_SpecCube0_HDR),<span class="number">1.0f</span>);</span><br><span class="line">             <span class="comment">//折射向量采样天空盒</span></span><br><span class="line">             float4 refractedColor=<span class="number">1.0f</span>;</span><br><span class="line">             refractedColor.r=<span class="built_in">DecodeHDR</span> (<span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, tRed),unity_SpecCube0_HDR).r;</span><br><span class="line">             refractedColor.g=<span class="built_in">DecodeHDR</span> (<span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, tGreen),unity_SpecCube0_HDR).g;</span><br><span class="line">             refractedColor.b=<span class="built_in">DecodeHDR</span> (<span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, tBlue),unity_SpecCube0_HDR).b;</span><br><span class="line">              <span class="comment">/*</span></span><br><span class="line"><span class="comment">             //动态计算菲涅尔方程计算折射比与反射比</span></span><br><span class="line"><span class="comment">             //先求入射向量与法线夹角</span></span><br><span class="line"><span class="comment">             worldViewDir=normalize(worldViewDir);</span></span><br><span class="line"><span class="comment">             float theta_i = acos(dot(i.normal.xyz,worldViewDir.xyz));</span></span><br><span class="line"><span class="comment">             float theta_t = acos(dot(-i.normal.xyz,normalize(tBlue)));</span></span><br><span class="line"><span class="comment">             //反射比R</span></span><br><span class="line"><span class="comment">             float ratio_r=pow(sin(radians(-16.88f))/sin(radians(73.1252f)),2.0f);</span></span><br><span class="line"><span class="comment">             ratio_r=(ratio_r+pow(tan(theta_t-theta_i)/tan(theta_t+theta_i),2.0f))/2.0f;</span></span><br><span class="line"><span class="comment">             float ratio_r=(sin(theta_t-theta_i)/sin(theta_t+theta_i))*(sin(theta_t-theta_i)/sin(theta_t+theta_i));</span></span><br><span class="line"><span class="comment">             //折射比T</span></span><br><span class="line"><span class="comment">             float ratio_t=1.0f-ratio_r;</span></span><br><span class="line"><span class="comment">             */</span></span><br><span class="line">             <span class="comment">//以上反射效果不好，改为以下固定值</span></span><br><span class="line">             <span class="comment">//对于普通的玻璃，反射比大约为4% https://wenku.baidu.com/view/1431cbee81c758f5f61f67ec.html</span></span><br><span class="line">             <span class="keyword">float</span> ratio_r=<span class="number">0.04f</span>;<span class="comment">//0.04f;</span></span><br><span class="line">             <span class="keyword">float</span> <span class="keyword">ratio_t</span>=<span class="number">0.83f</span>;<span class="comment">//1.0;//0.83f;</span></span><br><span class="line">             <span class="comment">//反射颜色与折射颜色按比例混合</span></span><br><span class="line">             fixed4 finalColor=refractedColor*<span class="keyword">ratio_t</span>+reflectedColor*ratio_r;</span><br><span class="line">             <span class="keyword">return</span> finalColor;</span><br><span class="line">            &#125;</span><br><span class="line">            ENDCG</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>]]></content>
       <categories>
         <category>Render</category>
       </categories>
       <tags>
         <tag>Render</tag>
-        <tag>Fundamentals of CG</tag>
+        <tag>Unity</tag>
       </tags>
   </entry>
   <entry>
@@ -937,13 +513,241 @@ $\begin{equation} F_{att} = \frac{1.0}{K_c + K_l * d + K_q * d^2} \end{equation}
       </tags>
   </entry>
   <entry>
-    <title>OpenGL中的VAO和VBO</title>
-    <url>/2022/02/22/vaovbo/</url>
-    <content><![CDATA[<p>作者：禾惠<br>链接：<a href="https://www.zhihu.com/question/30095978/answer/87995822">https://www.zhihu.com/question/30095978/answer/87995822</a><br>来源：知乎<br>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。</p>
-<p>OpenGL在画画的时候，要用到很多的信息，如顶点的坐标、纹理、颜色等等…. </p>
-<p>假如一个顶点包含了坐标和颜色的信息，那么这个顶点处的数据格式可能如下：x, y, z, r, g, b这些值会被存储在一个叫VBO (vertex buffer object)的地方。</p>
-<p>因而，可以把VBO理解成一个数据区域，这里面存放了渲染所需要的一切信息。但需要注意的是，数据在VBO里面的时候，OpenGL是并不知道这里面的每个数据所代表的具体含义的，只是一堆数值罢了。</p>
-<p>这时候，VAO(vertex array object)就派上用场了。VAO指定了读取VBO的方式~~假如VBO里面现在存放了如下的内容：x0, y0, z0, r0, g0, b0x1, y1, z1, r1, g1, b1x2, y2, z2, r2, g2, b2VAO可以定义一种格式说，我每次只取VBO里面的x,y,z的值；也可以定义一种格式说，每次只取VBO里面的r,g,b的值。这样我们就可以在渲染的时候，绑定不同的VAO，实现按照不同的格式将VBO里面的东西渲染出来~通过定义VBO里面数据存放的方式、VAO的格式以及合适的GLSL 语言，就能够灵活地画出我们所需要的各种图形。</p>
+    <title>光源</title>
+    <url>/2021/09/25/light/</url>
+    <content><![CDATA[<h1 id="平行光"><a href="#平行光" class="headerlink" title="平行光"></a>平行光</h1><p>当一个光源处于很远的地方时，来自光源的每条光线就会近似于互相平行。不论物体和/或者观察者的位置，看起来好像所有的光都来自于同一个方向。当我们使用一个假设光源处于无限远处的模型时，它就被称为<code>定向光</code>，因为它的所有光线都有着相同的方向，它与光源的位置是没有关系的</p>
+<p>可以定义一个光线方向向量而不是位置向量来模拟一个定向光。着色器的计算基本保持不变，但这次我们将直接使用光的direction向量而不是通过direction来计算lightDir向量</p>
+<p><code>vec3 lightDir = normalize(-light.direction);</code></p>
+<p>注意我们首先对light.direction向量取反。我们目前使用的光照计算需求一个从片段至光源的光线方向，但人们更习惯定义定向光为一个从光源出发的全局方向。所以我们需要对全局光照方向向量取反来改变它的方向，它现在是一个指向光源的方向向量</p>
+<h1 id="点光源"><a href="#点光源" class="headerlink" title="点光源"></a>点光源</h1><p>定向光对于照亮整个场景的全局光源是非常棒的，但除了定向光之外我们也需要一些分散在场景中的<code>点光源(Point Light)</code>。点光源是处于世界中某一个位置的光源，它会朝着所有方向发光，但光线会随着距离逐渐衰减。想象作为投光物的灯泡和火把，它们都是点光源。</p>
+<p>随着光线传播距离的增长逐渐削减光的强度通常叫做衰减(Attenuation)。</p>
+<p>在现实世界中，灯在近处通常会非常亮，但随着距离的增加光源的亮度一开始会下降非常快，但在远处时剩余的光强度就会下降的非常缓慢</p>
+<p>下面这个公式根据片段距光源的距离计算了衰减值，之后我们会将它乘以光的强度向量：</p>
+<center>
+$\begin{equation} F_{att} = \frac{1.0}{K_c + K_l * d + K_q * d^2} \end{equation}$
+</center>
+
+<p>在这里d代表了片段距光源的距离。接下来为了计算衰减值，我们定义3个（可配置的）项：常数项Kc、一次项Kl和二次项Kq。</p>
+<ul>
+<li>常数项通常保持为1.0，它的主要作用是保证分母永远不会比1小，否则的话在某些距离上它反而会增加强度，这肯定不是我们想要的效果。</li>
+<li>一次项会与距离值相乘，以线性的方式减少强度。</li>
+<li>二次项会与距离的平方相乘，让光源以二次递减的方式减少强度。二次项在距离比较小的时候影响会比一次项小很多，但当距离值比较大的时候它就会比一次项更大了。</li>
+</ul>
+<p>由于二次项的存在，光线会在大部分时候以线性的方式衰退，直到距离变得足够大，让二次项超过一次项，光的强度会以更快的速度下降。这样的结果就是，光在近距离时亮度很高，但随着距离变远亮度迅速降低，最后会以更慢的速度减少亮度</p>
+<h1 id="聚光"><a href="#聚光" class="headerlink" title="聚光"></a>聚光</h1><p>聚光是位于环境中某个位置的光源，它只朝一个特定方向而不是所有方向照射光线。这样的结果就是只有在聚光方向的特定半径内的物体才会被照亮，其它的物体都会保持黑暗。聚光很好的例子就是路灯或手电筒。</p>
+]]></content>
+      <categories>
+        <category>Render</category>
+      </categories>
+      <tags>
+        <tag>Render</tag>
+        <tag>Fundamentals of CG</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>坐标系统与相机</title>
+    <url>/2021/09/23/Camera/</url>
+    <content><![CDATA[<h1 id="坐标系统"><a href="#坐标系统" class="headerlink" title="坐标系统"></a>坐标系统</h1><p>将物体的坐标变换到几个过渡坐标系的优点在于，在这些特定的坐标系统中，一些操作或运算更加方便和容易</p>
+<p>5个重要的坐标系统:</p>
+<ul>
+<li>局部空间(Local Space，或者称为物体空间(Object Space))</li>
+<li>世界空间(World Space)</li>
+<li>观察空间(View Space，或者称为视觉空间(Eye Space))</li>
+<li>裁剪空间(Clip Space)</li>
+<li>屏幕空间(Screen Space)</li>
+</ul>
+<p>这就是一个顶点在最终被转化为片段之前需要经历的所有不同状态。</p>
+<p>为了将坐标从一个坐标系变换到另一个坐标系，我们需要用到几个变换矩阵，最重要的几个分别是模型(Model)、观察(View)、投影(Projection)三个矩阵。我们的顶点坐标起始于<code>局部空间</code>(Local Space)，在这里它称为<code>局部坐标</code>(Local Coordinate)，它在之后会变为<code>世界坐标</code>(World Coordinate)，<code>观察坐标</code>(View Coordinate)，<code>裁剪坐标</code>(Clip Coordinate)，并最后以<code>屏幕坐标</code>(Screen Coordinate)的形式结束。</p>
+<ol>
+<li>局部坐标是对象相对于局部原点的坐标，也是物体起始的坐标。</li>
+<li>下一步是将局部坐标变换为世界空间坐标，世界空间坐标是处于一个更大的空间范围的。这些坐标相对于世界的全局原点，它们会和其它物体一起相对于世界的原点进行摆放。</li>
+<li>接下来我们将世界坐标变换为观察空间坐标，使得每个坐标都是从摄像机或者说观察者的角度进行观察的。</li>
+<li>坐标到达观察空间之后，我们需要将其投影到裁剪坐标。裁剪坐标会被处理至-1.0到1.0的范围内，并判断哪些顶点将会出现在屏幕上。</li>
+<li>最后，我们将裁剪坐标变换为屏幕坐标，我们将使用一个叫做视口变换(Viewport Transform)的过程。视口变换将位于-1.0到1.0范围的坐标变换到由glViewport函数所定义的坐标范围内。最后变换出来的坐标将会送到光栅器，将其转化为片段。</li>
+</ol>
+<h2 id="局部空间"><a href="#局部空间" class="headerlink" title="局部空间"></a>局部空间</h2><p>局部空间是指物体所在的坐标空间，即对象最开始所在的地方。想象你在一个建模软件（比如说Blender）中创建了一个立方体。你创建的立方体的原点有可能位于(0, 0, 0)，即便它有可能最后在程序中处于完全不同的位置。甚至有可能你创建的所有模型都以(0, 0, 0)为初始位置（注：然而它们会最终出现在世界的不同位置）。所以，你的模型的所有顶点都是在局部空间中：它们相对于你的物体来说都是局部的。</p>
+<h2 id="世界空间"><a href="#世界空间" class="headerlink" title="世界空间"></a>世界空间</h2><p>世界空间中的坐标正如其名：是指顶点相对于（游戏）世界的坐标。如果你希望将物体分散在世界上摆放（特别是非常真实的那样），这就是你希望物体变换到的空间。物体的坐标将会从局部变换到世界空间；该变换是由模型矩阵(Model Matrix)实现的。</p>
+<p>模型矩阵是一种变换矩阵，它能通过对物体进行位移、缩放、旋转来将它置于它本应该在的位置或朝向。你可以将它想像为变换一个房子，你需要先将它缩小（它在局部空间中太大了），并将其位移至郊区的一个小镇，然后在y轴上往左旋转一点以搭配附近的房子。</p>
+<h2 id="观察空间"><a href="#观察空间" class="headerlink" title="观察空间"></a>观察空间</h2><p>观察空间是将世界空间坐标转化为用户视野前方的坐标而产生的结果。因此观察空间就是从摄像机的视角所观察到的空间。而这通常是由一系列的位移和旋转的组合来完成，平移/旋转场景从而使得特定的对象被变换到摄像机的前方。这些组合在一起的变换通常存储在一个观察矩阵(View Matrix)里，它被用来将世界坐标变换到观察空间。</p>
+<h2 id="裁剪空间"><a href="#裁剪空间" class="headerlink" title="裁剪空间"></a>裁剪空间</h2><p>在一个顶点着色器运行的最后，OpenGL期望所有的坐标都能落在一个特定的范围内，且任何在这个范围之外的点都应该被裁剪掉(Clipped)。被裁剪掉的坐标就会被忽略，所以剩下的坐标就将变为屏幕上可见的片段。这也就是裁剪空间(Clip Space)名字的由来。</p>
+<p>为了将顶点坐标从观察变换到裁剪空间，我们需要定义一个投影矩阵(Projection Matrix)，它指定了一个范围的坐标，比如在每个维度上的-1000到1000。投影矩阵接着会将在这个指定的范围内的坐标变换为标准化设备坐标的范围(-1.0, 1.0)。所有在范围外的坐标不会被映射到在-1.0到1.0的范围之间，所以会被裁剪掉。在上面这个投影矩阵所指定的范围内，坐标(1250, 500, 750)将是不可见的，这是由于它的x坐标超出了范围，它被转化为一个大于1.0的标准化设备坐标，所以被裁剪掉了。</p>
+<p>我们为上述的每一个步骤都创建了一个变换矩阵：模型矩阵、观察矩阵和投影矩阵。一个顶点坐标将会根据以下过程被变换到裁剪坐标：</p>
+<p><center>
+$V_{clip} = M_{projection} \cdot M_{view} \cdot M_{model} \cdot V_{local}$
+</center><br>    <div class="note info modern"><p>注意矩阵运算的顺序是相反的（我们需要从右往左阅读矩阵的乘法）。</p>
+</div></p>
+<h1 id="相机"><a href="#相机" class="headerlink" title="相机"></a>相机</h1><p>略</p>
+]]></content>
+      <categories>
+        <category>Render</category>
+      </categories>
+      <tags>
+        <tag>Render</tag>
+        <tag>Fundamentals of CG</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>C++中的继承</title>
+    <url>/2021/09/22/cpp_4_inheritance/</url>
+    <content><![CDATA[<h1 id="基类和派生类"><a href="#基类和派生类" class="headerlink" title="基类和派生类"></a>基类和派生类</h1><p>把在原有类的基础上建立新类并且添加新特征的过程叫做<code>类的派生</code>,把原有的类叫做<code>基类</code>或<code>父类</code>,把新建立的类叫做<code>派生类</code>或<code>子类</code></p>
+<p>只有一个基类的继承叫<code>单一继承</code>,有多个基类的继承叫<code>多重继承</code></p>
+<p>当声明一个派生类时,可通过在类的名字后面加一个<code>:</code>来表示是从哪个类派生出来</p>
+<p>单一继承形式:<br><code>关键字Class 派生类名 : 派生类型 基类名</code></p>
+<p>多重继承形式:<br><code>class 类名:访问权限 类名1,访问权限 类名2,...</code></p>
+<p>派生类的构造函数<br><code>派生类名::派生类名(参数):基类名(参数),基类2名(参数),...</code></p>
+<h2 id="访问权限"><a href="#访问权限" class="headerlink" title="访问权限"></a>访问权限</h2><h3 id="公有派生"><a href="#公有派生" class="headerlink" title="公有派生"></a>公有派生</h3><ul>
+<li>基类的公有成员(public)在派生类中仍然是公有的</li>
+<li>公有派生的前提下,基类的保护成员(protect)在派生类中仍然是被保护的</li>
+<li>公有派生的私有成员(private)在派生类中无法访问</li>
+<li>派生的对象可以赋给基类的对象<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">father a;</span><br><span class="line">son b;</span><br><span class="line">a = b;</span><br></pre></td></tr></table></figure></li>
+<li>派生类的对象可以初始化基类的引用<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">son b;</span><br><span class="line">father &amp;aa = b;</span><br></pre></td></tr></table></figure></li>
+<li>派生类可以将对象的地址赋值给基类的指针<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">son b;</span><br><span class="line">father *aa=&amp;b;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="私有派生"><a href="#私有派生" class="headerlink" title="私有派生"></a>私有派生</h3><p>略</p>
+]]></content>
+      <categories>
+        <category>c++</category>
+      </categories>
+      <tags>
+        <tag>c++</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>C++中的引用</title>
+    <url>/2021/09/21/cpp_2_reference/</url>
+    <content><![CDATA[<p>有空再写</p>
+]]></content>
+      <categories>
+        <category>c++</category>
+      </categories>
+      <tags>
+        <tag>c++</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>C++中的重载</title>
+    <url>/2021/09/21/cpp_3_overload/</url>
+    <content><![CDATA[<p>有空再写</p>
+]]></content>
+      <categories>
+        <category>c++</category>
+      </categories>
+      <tags>
+        <tag>c++</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>C++中的指针和地址</title>
+    <url>/2021/09/21/cpp_1_pointer/</url>
+    <content><![CDATA[<h1 id="地址和指针"><a href="#地址和指针" class="headerlink" title="地址和指针"></a>地址和指针</h1><p>通过<code>&amp;</code>获取地址:<br><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">int</span> i = <span class="number">1</span>;</span><br><span class="line">    cout&lt;&lt;&amp;i&lt;&lt;endl;<span class="comment">//通过操作符&amp;获取i在内存中的地址,然后输出在屏幕上</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>输出<code>00000060464FF574</code></p>
+<p>指针就是用来保存内存地址的变量,每个被定义的变量都有自己的地址,因此可以使用指针来存放任何已被定义的变量的地址,即使没有被赋值</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> a;<span class="comment">//定义一个变量a</span></span><br><span class="line"><span class="keyword">int</span> *p;<span class="comment">//定义一个指针p</span></span><br><span class="line">p=&amp;a;<span class="comment">//将变量a的地址取出,赋给变量p,这样变量p保存的就是变量a的地址</span></span><br><span class="line">cout&lt;&lt;&amp;a&lt;&lt;endl;<span class="comment">//输出a的地址</span></span><br><span class="line">cout&lt;&lt;p&lt;&lt;endl;<span class="comment">//输出变量p的值,也即是a的地址</span></span><br></pre></td></tr></table></figure>
+<p>输出:<br><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">00000086EA92F784</span><br><span class="line">00000086EA92F784</span><br></pre></td></tr></table></figure></p>
+<h2 id="常量指针"><a href="#常量指针" class="headerlink" title="常量指针"></a>常量指针</h2><p><code>int *const p;//指针只能初始化,不可改变,但可以改变其指向的整数</code></p>
+<h2 id="指向常量的指针"><a href="#指向常量的指针" class="headerlink" title="指向常量的指针"></a>指向常量的指针</h2><p><code>const int *p;指向的整数不可修改,指针可以被修改</code></p>
+<h2 id="指向常量的常指针"><a href="#指向常量的常指针" class="headerlink" title="指向常量的常指针"></a>指向常量的常指针</h2><p><code>const int * const p;//不解释</code></p>
+<h2 id="空指针"><a href="#空指针" class="headerlink" title="空指针"></a>空指针</h2><p>void * 可以指向任何类型对象的地址，表示这是一个指针，和地址值有关，但不知道存储在此地址上的对象的类型，所以在取空类型指针所指向的值的时候，应将空类型指针转换为对应的指针类型</p>
+<h3 id="空指针支持的操作"><a href="#空指针支持的操作" class="headerlink" title="空指针支持的操作"></a>空指针支持的操作</h3><ul>
+<li><p>与另一个指针比较</p>
+</li>
+<li><p>向函数传递void *指针</p>
+</li>
+<li><p>在函数里返回void *指针</p>
+</li>
+<li><p>给另一个void *指针赋值</p>
+</li>
+</ul>
+<h3 id="空指针不支持的操作"><a href="#空指针不支持的操作" class="headerlink" title="空指针不支持的操作"></a>空指针不支持的操作</h3><ul>
+<li><p>不支持解引用，不能获取指向对象的值</p>
+</li>
+<li><p>不能进行指针运算，比如移位操作</p>
+</li>
+</ul>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	<span class="keyword">double</span> a = <span class="number">3.14</span>;</span><br><span class="line">	<span class="keyword">double</span> *p1 = &amp;a;</span><br><span class="line">	<span class="keyword">void</span> *p2 = &amp;a;                 <span class="comment">//正确，将一个double型数据的地址赋给一个空类型指针</span></span><br><span class="line">	<span class="keyword">void</span> *p3 = p1;                 <span class="comment">//正确，将一个double型指针赋给一个空类型指针</span></span><br><span class="line"> </span><br><span class="line">	<span class="comment">//double b = *p2;              //错误，无法对一个空类型指针解引用</span></span><br><span class="line">	<span class="keyword">double</span> d = *((<span class="keyword">double</span>*)p2);     <span class="comment">//正确，先将空类型指针强转为double型指针，然后再解引用</span></span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;%f\n&quot;</span>, d);</span><br><span class="line"> </span><br><span class="line">	<span class="keyword">int</span> array[<span class="number">5</span>] = &#123; <span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>,<span class="number">4</span>,<span class="number">5</span> &#125;;</span><br><span class="line">	<span class="keyword">void</span> *p4 = array;</span><br><span class="line">	<span class="comment">//for (int i = 0; i &lt; 5; i++)</span></span><br><span class="line">	<span class="comment">//&#123;</span></span><br><span class="line">	<span class="comment">//	printf(&quot;%d  &quot;, *(p4 + i)); //错误，不能对空类型指针进行移位操作</span></span><br><span class="line">	<span class="comment">//&#125;</span></span><br><span class="line"> </span><br><span class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">5</span>; i++)</span><br><span class="line">	&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;%d  &quot;</span>, *((<span class="keyword">int</span>*)p4 + i));   <span class="comment">//正确，先将空类型指针强转为int型指针，然后再解引用</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line"> </span><br><span class="line">	<span class="built_in">system</span>(<span class="string">&quot;pause&quot;</span>);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="野指针"><a href="#野指针" class="headerlink" title="野指针"></a>野指针</h2><p>指针p被free或者delete之后，只是把指针所指的内存释放掉了，没有改变指针的值或没有置为NULL，此时，p沦落为野指针<br><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">char</span> str1[] = <span class="string">&quot;Hello&quot;</span>;</span><br><span class="line"><span class="keyword">char</span> str2[] = <span class="string">&quot;world&quot;</span>;</span><br><span class="line"><span class="keyword">char</span> *pd = (<span class="keyword">char</span>*)<span class="built_in">malloc</span>(<span class="number">100</span>);</span><br><span class="line"><span class="built_in">strcpy</span>(pd, str1);         <span class="comment">//正确，将字符串str1复制到指定的内存中去</span></span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%p\n&quot;</span>, pd);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%s\n&quot;</span>, pd);</span><br><span class="line"> </span><br><span class="line"><span class="built_in">free</span>(pd);</span><br><span class="line"><span class="keyword">if</span> (pd != <span class="literal">NULL</span>)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">strcpy</span>(pd, str2);    <span class="comment">//错误，将字符串str2放到没有经过系统指定的内存中去</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%p\n&quot;</span>, pd);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%s\n&quot;</span>, pd);</span><br></pre></td></tr></table></figure></p>
+<h2 id="this指针"><a href="#this指针" class="headerlink" title="this指针"></a>this指针</h2><p>this是一个 const 指针，是所有成员函数的隐含参数。因此，在成员函数内部，它可以用来指向调用对象。</p>
+<ul>
+<li><p>this只能在成员函数中使用<br>成员函数默认第一个参数为T* const register this。<br>（友元函数，全局函数不是成员函数）</p>
+</li>
+<li><p>this指针不能再静态函数中使用<br>静态函数如同静态变量一样，他不属于具体的哪一个对象，静态函数表示了整个类范围意义上的信息，而this指针却实实在在的对应一个对象，所以this指针不能被静态函数使用。</p>
+</li>
+<li><p>this指针的创建<br>this指针在成员函数的开始执行前构造的，在成员的执行结束后清除。</p>
+</li>
+<li><p>this指针只有在成员函数中才有定义。<br>创建一个对象后，不能通过对象使用this指针。也无法知道一个对象的this指针的位置（只有在成员函数里才有this指针的位置）。当然，在成员函数里，你是可以知道this指针的位置的（可以&amp;this获得)，也可以直接使用的。</p>
+</li>
+</ul>
+<hr>
+<h1 id="栈和堆"><a href="#栈和堆" class="headerlink" title="栈和堆"></a>栈和堆</h1><h2 id="数据在内存中的存放形式"><a href="#数据在内存中的存放形式" class="headerlink" title="数据在内存中的存放形式"></a>数据在内存中的存放形式</h2><ul>
+<li>栈区(stack):由编译器自动分配并释放,该区域一般存放函数的参数值,局部变量的值等</li>
+<li>堆区(heap):一般由程序员分配释放,若程序员不释放,程序结束时<code>可能</code>由操作系统回收</li>
+<li>寄存器区:用来保存栈顶指针和指令指针</li>
+<li>全局区(静态区)(static):全局变量和静态变量的存储是放在一块的,初始化的全局变量和静态变量在一块区域,未初始化的全局变量和未初始化的静态变量在相邻的另一块区域.程序结束后由系统释放</li>
+<li>文字常量区:常量字符串存储在此,程序结束后由系统释放</li>
+<li>程序代码区:存放函数体的二进制代码</li>
+</ul>
+<h2 id="堆和栈的不同之处"><a href="#堆和栈的不同之处" class="headerlink" title="堆和栈的不同之处"></a>堆和栈的不同之处</h2><ul>
+<li>内存申请的方式不同</li>
+<li>系统响应的不同</li>
+<li>空间大小的不同</li>
+<li>执行效率的不同</li>
+<li>执行函数时的不同</li>
+</ul>
+<p>栈内存小,效率高,存储的数据仅在函数内有效</p>
+<p>堆的可存储空间可以非常大,但容易产生内存碎片,效率低,但灵活性高(堆是不连续的内存区域,各块区域由链表串联起来)</p>
+<hr>
+<h1 id="指针和堆"><a href="#指针和堆" class="headerlink" title="指针和堆"></a>指针和堆</h1><h2 id="用指针创建堆中空间"><a href="#用指针创建堆中空间" class="headerlink" title="用指针创建堆中空间"></a>用指针创建堆中空间</h2><p>堆中的每个内存单元都是匿名的,因此必须先在堆中申请一个内存单元的地址,然后把它保存在一个指针中,这样,只有使用该指针才可以访问到该内存单元的数据,这样可以避免一些试图修改它的非法操作</p>
+<p>为此,首先创建一个堆,然后定义一个指向该堆的指针,在c++中使用关键字new创建一个堆并分配内存,在new后面跟一个要分配的对象类型,编译器根据这个类型来分配内存</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p;<span class="comment">//定义了一个指向整型的指针变量p</span></span><br><span class="line">p = <span class="keyword">new</span> <span class="keyword">int</span>;<span class="comment">//用new在堆中创建一个int类型的内存区域,然后将该区域的内存地址赋给指针变量p,这样p所指向的就是这块新建的内存区域</span></span><br><span class="line">*p = <span class="number">4</span>;<span class="comment">//将4赋给该存储区</span></span><br><span class="line">cout&lt;&lt;*p;<span class="comment">//输出该存储区中保存的数据4</span></span><br></pre></td></tr></table></figure>
+<h2 id="用指针删除堆中空间"><a href="#用指针删除堆中空间" class="headerlink" title="用指针删除堆中空间"></a>用指针删除堆中空间</h2><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line"><span class="keyword">delete</span> p;<span class="comment">//删除指针指向的内存区域</span></span><br><span class="line">p = <span class="number">0</span>;<span class="comment">//防止出现野指针</span></span><br></pre></td></tr></table></figure>
+<hr>
+<h1 id="动态内存"><a href="#动态内存" class="headerlink" title="动态内存"></a>动态内存</h1><h2 id="内存泄漏"><a href="#内存泄漏" class="headerlink" title="内存泄漏"></a>内存泄漏</h2><p>假如没有删除一个指针就对其重新赋值,如</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br></pre></td></tr></table></figure>
+<p>就会造成内存泄漏,因为指针p一开始指向了一块内存空间,之后又将一块新的内存空间地址赋给了p,这样一开始那块内存空间就无法使用了,因为指向它的指针已经指向了另一块空间</p>
+<p>正确操作:</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line"><span class="keyword">delete</span> p;</span><br><span class="line">p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br></pre></td></tr></table></figure>
+<h2 id="访问堆中的数据成员"><a href="#访问堆中的数据成员" class="headerlink" title="访问堆中的数据成员"></a>访问堆中的数据成员</h2><p>假如要访问对象的数据成员和函数,我们使用成员运算符<code>.</code><br>如<code>a.get();</code></p>
+<p>假如是在堆中创建的对象,而该对象的内存地址保存在指针变量p中,那么就是:<br><code>(*p).get();</code><br>使用括号是为了保证先使用<code>*</code>号读取p的内存地址,然后再使用成员运算符<code>.</code>来访问成员函数<code>get()</code><br>而C++专门为用指针来间接访问对象的成员设置了一个运算符<code>-&gt;</code>,利用该符号可以实现读取对象的内存地址并访问该对象的成员的作用<br><code>p-&gt;get();</code></p>
+<hr>
+<h1 id="指针运算"><a href="#指针运算" class="headerlink" title="指针运算"></a>指针运算</h1><h2 id="指针的加减运算"><a href="#指针的加减运算" class="headerlink" title="指针的加减运算"></a>指针的加减运算</h2><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">p++;<span class="comment">//内存地址自加,由于p指向的是int型变量,因此执行加1操作,会将原来的内存地址增加4个字节</span></span><br><span class="line">p--;<span class="comment">//内存地址自减,由于...</span></span><br></pre></td></tr></table></figure>
+<p>示例:<br><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">int</span>* p;</span><br><span class="line">    p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">    cout &lt;&lt; p &lt;&lt; endl;<span class="comment">//000002013A5865D0</span></span><br><span class="line">    cout &lt;&lt; ++p &lt;&lt; endl;<span class="comment">//000002013A5865D4</span></span><br><span class="line">    cout &lt;&lt; --p &lt;&lt; endl;<span class="comment">//000002013A5865D0</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="指针的赋值运算"><a href="#指针的赋值运算" class="headerlink" title="指针的赋值运算"></a>指针的赋值运算</h2><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line"><span class="keyword">int</span> *p1 = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">cout &lt;&lt; p &lt;&lt; endl;<span class="comment">//000002CBB35865D0</span></span><br><span class="line">cout &lt;&lt; p1 &lt;&lt; endl;<span class="comment">//000002CBB3585380</span></span><br><span class="line">p=p1;</span><br><span class="line">cout &lt;&lt; p &lt;&lt; endl;<span class="comment">//000002CBB3585380</span></span><br></pre></td></tr></table></figure>
+<h2 id="指针的相减运算"><a href="#指针的相减运算" class="headerlink" title="指针的相减运算"></a>指针的相减运算</h2><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> *p = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line"><span class="keyword">int</span> *p1 = <span class="keyword">new</span> <span class="keyword">int</span>;</span><br><span class="line">cout &lt;&lt; p &lt;&lt; endl;<span class="comment">//00000233D1D765D0</span></span><br><span class="line">cout &lt;&lt; p1 &lt;&lt; endl;<span class="comment">//00000233D1D7F300</span></span><br><span class="line">cout &lt;&lt; p-p1 &lt;&lt; endl;<span class="comment">//-9036(两块内存的地址差)</span></span><br></pre></td></tr></table></figure>
+<h2 id="指针的比较运算"><a href="#指针的比较运算" class="headerlink" title="指针的比较运算"></a>指针的比较运算</h2><p>内存地址大小的比较</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">if(p&lt;p1)</span><br><span class="line">return ;</span><br></pre></td></tr></table></figure>
+<p>具体代码略</p>
+<hr>
+<h1 id="为什么使用指针"><a href="#为什么使用指针" class="headerlink" title="为什么使用指针"></a>为什么使用指针</h1><p>在操作大型数据和类时,由于指针可以通过内存地址直接访问数据,可避免在程序中复制大量的代码,因此指针的效率高</p>
+<ul>
+<li>处理堆中存放的大型数据</li>
+<li>快速访问类的成员数据和函数</li>
+<li>以别名的方式向函数传递参数</li>
+</ul>
+]]></content>
+      <categories>
+        <category>c++</category>
+      </categories>
+      <tags>
+        <tag>c++</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>交换链和深度缓冲</title>
+    <url>/2021/09/19/DirectX11_3/</url>
+    <content><![CDATA[<h1 id="交换链和页面翻转"><a href="#交换链和页面翻转" class="headerlink" title="交换链和页面翻转"></a>交换链和页面翻转</h1><p>为了避免在动画中出现闪烁，最好的做法是在一个<strong>离屏（off-screen）</strong>纹理中执行所有的动画帧绘制工作，这个离屏纹理称为<strong>后台缓冲区（back buffer）</strong>。当我们在后台缓冲区中完成给定帧的绘制工作后，便可以将后台缓冲区作为一个完整的帧显示在屏幕上；使用这种方法，用户不会察觉到帧的绘制过程，只会看到完整的帧。<br>从理论上讲，将一帧显示到屏幕上所消耗的时间小于屏幕的垂直刷新时间。</p>
+<div class="note info modern"><p>刷新频率分为垂直刷新率和水平刷新率，垂直刷新率表示屏幕的图象每秒种重绘多少次。也就是指每秒钟屏幕刷新的次数，以Hz（赫兹）为单位。水平刷新率又称行频，它表示显示器从左到右绘制一条水平线所用的时间，以kHz为单位。</p>
+</div>
+<p>硬件会自动维护两个内置的纹理缓冲区来实现这一功能，这两个缓冲区分别称为<strong>前台缓冲区（front buffer）</strong>和<strong>后台缓冲区</strong>。前台缓冲区存储了当前显示在屏幕上的图像数据，而动画的下一帧会在后台缓冲区中执行绘制。当后台缓冲区的绘图工作完成之后，前后两个缓冲区的作用会发生翻转：后台缓冲区会变为前台缓冲区， 而前台缓冲区会变为后台缓冲区，为下一帧的绘制工作提前做准备。我们将前后缓冲区功能互换的行为称做<strong>呈现（presenting）</strong>。</p>
+<p>前后缓冲区形成了一个<strong>交换链（swap chain）</strong>。在Direct3D中，交换链由IDXGISwapChain接口表示。该接口保存了前后缓冲区纹理，并提供了用于调整缓冲区尺寸的方法（IDXGISwapChain::ResizeBuffers）和呈现方法（IDXGISwapChain::Present）。</p>
+<p>使用（前后）两个缓冲区称为<strong>双缓冲（double buffering）</strong></p>
+<hr>
+<h1 id="深度缓冲区"><a href="#深度缓冲区" class="headerlink" title="深度缓冲区"></a>深度缓冲区</h1><p>常见的深度值范围在0.0到1.0之间，其中0.0表示离观察者最近的物体，1.0表示离观察者最远的物体。</p>
+<p>深度缓冲区中的每个元素与后台缓冲区中的每个像素一一对应（即，后台缓冲区的第ij个元素对应于深度缓冲区的第ij个元素）。所以，当后台缓冲区的分辨率为1280×1024时，在深度缓冲区中有1280×1024个深度元素。</p>
+<div class="note info modern"><p>深度缓存（depth buffering）== Z缓存（z-buffering）</p>
+</div>
+<hr>
+<h1 id="多重采样"><a href="#多重采样" class="headerlink" title="多重采样"></a>多重采样</h1><p>当无法提高显示器分辨率或分辨率不够高时，我们可以使用<strong>抗锯齿（antialiasing）</strong>技术。其中的一种技术叫做<strong>超级采样（supersampling）</strong>，它把后台缓冲和深度缓冲的大小提高到屏幕分辨率的4倍。3D场景会以这个更大的分辨率渲染到后台缓存中，当在屏幕上呈现后台缓冲时，后台缓冲会将4个像素的颜色取平均值后得到一个像素的最终颜色。</p>
+<p>Direct3D支持另一种称为多重采样（multisampling）的抗锯齿技术，它通过对一个像素的子像素进行采样计算出该像素的最终颜色，比超级采样节省资源。假如我们使用的是4X多重采样（每个像素采样4个邻接像素），多重采样仍然会使用屏幕分辨率4倍大小的后台缓冲和深度缓冲，但是，不像超级采样那样计算每个子像素的颜色，而是只计算像素中心颜色一次，然后基于子像素的可见性（基于子像素的深度/模板测试）和范围（子像素中心在多边形之外还是之内）共享颜色信息。</p>
 ]]></content>
       <categories>
         <category>Render</category>
@@ -953,23 +757,219 @@ $\begin{equation} F_{att} = \frac{1.0}{K_c + K_l * d + K_q * d^2} \end{equation}
       </tags>
   </entry>
   <entry>
-    <title>Unity Shader常用函数及示例代码</title>
-    <url>/2021/10/21/shader_1/</url>
-    <content><![CDATA[<div class="note warning modern"><p>本文代码部分为CG语言</p>
-</div>
-<p>Unity官方手册上讲Shader程序嵌入的小片段是用Cg/HLSL编写的，从“CGPROGRAM”开始，到“CGEND”结束。所以，Unity官方主要是用Cg/HLSL编写Shader程序片段。Unity官方手册也说明对于Cg/HLSL程序进行扩展也可以使用GLSL，不过Unity官方建议使用原生的GLSL进行编写和测试。如果不使用原生GLSL，你就需要知道你的平台必须是Mac OS X、OpenGL ES 2.0以上的移动设备或者是Linux。在一般情况下Unity会把Cg/HLSL交叉编译成优化过的GLSL。因此我们有多种选择，我们既可以考虑使用Cg/HLSL，也可以使用GLSL。不过由于Cg/HLSL更好的跨平台性，更倾向于使用Cg/HLSL编写Shader程序。</p>
-<h3 id="顶点着色器："><a href="#顶点着色器：" class="headerlink" title="顶点着色器："></a>顶点着色器：</h3><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 将坐标转换到裁剪空间</span></span><br><span class="line">o.pos = <span class="built_in">UnityObjectToClipPos</span>(vertex);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 计算顶点的世界坐标</span></span><br><span class="line">float3 worldPos = <span class="built_in">mul</span>(_Object2World, vertex).xyz;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 计算世界空间下的视角方向</span></span><br><span class="line">float3 worldViewDir = <span class="built_in">normalize</span>(<span class="built_in">UnityWorldSpaceViewDir</span>(worldPos));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 世界空间下的法线</span></span><br><span class="line">float3 worldNormal = <span class="built_in">UnityObjectToWorldNormal</span>(normal);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 世界空间下的反射向量</span></span><br><span class="line">o.worldRefl = <span class="built_in">reflect</span>(-worldViewDir, worldNormal);</span><br></pre></td></tr></table></figure>
-<h3 id="片段着色器"><a href="#片段着色器" class="headerlink" title="片段着色器"></a>片段着色器</h3><figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 采样纹理并返回数据</span></span><br><span class="line">fixed4 col = <span class="built_in">tex2D</span>(_MainTex, i.uv);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 使用反射向量采样默认的反射立体纹理（unity_SpecCube0）</span></span><br><span class="line">half4 skyData = <span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, i.worldRefl);</span><br><span class="line"><span class="comment">// 解码cubemap的数据到具体显示的颜色</span></span><br><span class="line">half3 skyColor = <span class="built_in">DecodeHDR</span> (skyData, unity_SpecCube0_HDR);</span><br></pre></td></tr></table></figure>
+    <title>Matrix algebra in CG</title>
+    <url>/2021/09/18/DirectX11_2/</url>
+    <content><![CDATA[<h1 id="矩阵加法"><a href="#矩阵加法" class="headerlink" title="矩阵加法"></a>矩阵加法</h1><p>略</p>
 <hr>
-<h3 id="代码示例"><a href="#代码示例" class="headerlink" title="代码示例"></a>代码示例</h3><p><img src="https://s3.bmp.ovh/imgs/2021/11/643c64bb1a99f58e.png" alt=""></p>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line">Shader <span class="string">&quot;Unlit/SkyReflection&quot;</span></span><br><span class="line">&#123;</span><br><span class="line">    SubShader</span><br><span class="line">    &#123;</span><br><span class="line">        Pass</span><br><span class="line">        &#123;</span><br><span class="line">            CGPROGRAM</span><br><span class="line">            <span class="meta">#<span class="meta-keyword">pragma</span> vertex vert</span></span><br><span class="line">            <span class="meta">#<span class="meta-keyword">pragma</span> fragment frag</span></span><br><span class="line">            <span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;UnityCG.cginc&quot;</span></span></span><br><span class="line"></span><br><span class="line">            <span class="class"><span class="keyword">struct</span> <span class="title">v2f</span> &#123;</span></span><br><span class="line">            	float3 normal:NORMAL;</span><br><span class="line">                half3 worldRefl : TEXCOORD0;</span><br><span class="line">                float4 pos : SV_POSITION;</span><br><span class="line">                float4 objectPOS:<span class="keyword">float</span>;</span><br><span class="line">            &#125;;</span><br><span class="line"></span><br><span class="line">            <span class="function">v2f <span class="title">vert</span> <span class="params">(float4 vertex : POSITION, float3 normal : NORMAL)</span></span></span><br><span class="line"><span class="function">            </span>&#123;</span><br><span class="line">                v2f o;</span><br><span class="line">                o.pos = <span class="built_in">UnityObjectToClipPos</span>(vertex);</span><br><span class="line">                o.normal=normal;</span><br><span class="line">                o.objectPOS=vertex;</span><br><span class="line">                <span class="keyword">return</span> o;</span><br><span class="line">            &#125;</span><br><span class="line">        </span><br><span class="line">            <span class="function">fixed4 <span class="title">frag</span> <span class="params">(v2f i)</span> : SV_Target</span></span><br><span class="line"><span class="function">            &#123;</span></span><br><span class="line">	            <span class="comment">//i.normal既是上图中的n。</span></span><br><span class="line">     			i.normal = <span class="built_in">UnityObjectToWorldNormal</span>(i.normal);</span><br><span class="line">				<span class="comment">//worldPos为上图中的P。</span></span><br><span class="line">                float3 worldPos = <span class="built_in">mul</span>(unity_ObjectToWorld, i.objectPOS).xyz;</span><br><span class="line">                <span class="comment">//worldViewDir为由P点射向camera的一条向量。</span></span><br><span class="line">                float3 worldViewDir = <span class="built_in">UnityWorldSpaceViewDir</span>(worldPos);</span><br><span class="line">                <span class="comment">//所以在reflect函数中要使用-worldViewDir，将方向颠倒过来，既成为了上图中的w。i.worldRefl既是</span></span><br><span class="line">	            <span class="comment">//上图中的r。</span></span><br><span class="line">                i.worldRefl = <span class="built_in">reflect</span>(-worldViewDir, i.normal);</span><br><span class="line">				<span class="comment">//进行立方体采样，既是根据上图中的r寻找立方盒上的点R。</span></span><br><span class="line">                half4 skyData = <span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, i.worldRefl);</span><br><span class="line">                half3 skyColor = <span class="built_in">DecodeHDR</span> (skyData, unity_SpecCube0_HDR);</span><br><span class="line">                fixed4 c = <span class="number">0</span>;</span><br><span class="line">                c.rgb = skyColor;</span><br><span class="line">                <span class="keyword">return</span> c;</span><br><span class="line">            &#125;</span><br><span class="line">            ENDCG</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line">Shader <span class="string">&quot;Unlit/DispersionBeta&quot;</span></span><br><span class="line">&#123;</span><br><span class="line">    Properties &#123;</span><br><span class="line">    &#125;</span><br><span class="line">    SubShader</span><br><span class="line">    &#123;</span><br><span class="line">        Pass</span><br><span class="line">        &#123;</span><br><span class="line">            CGPROGRAM</span><br><span class="line">            <span class="meta">#<span class="meta-keyword">pragma</span> vertex vert</span></span><br><span class="line">            <span class="meta">#<span class="meta-keyword">pragma</span> fragment frag</span></span><br><span class="line">            <span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;UnityCG.cginc&quot;</span></span></span><br><span class="line"></span><br><span class="line">            <span class="class"><span class="keyword">struct</span> <span class="title">v2f</span> &#123;</span></span><br><span class="line">                float3 normal:NORMAL;</span><br><span class="line">                float4 pos : SV_POSITION;</span><br><span class="line">                float4 objectPOS:<span class="keyword">float</span>;</span><br><span class="line">            &#125;;</span><br><span class="line"></span><br><span class="line">            <span class="function">v2f <span class="title">vert</span> <span class="params">(float4 vertex : POSITION, float3 normal : NORMAL)</span></span></span><br><span class="line"><span class="function">            </span>&#123;</span><br><span class="line">                v2f o;</span><br><span class="line">                o.pos = <span class="built_in">UnityObjectToClipPos</span>(vertex);</span><br><span class="line">                o.normal=normal;</span><br><span class="line">                o.objectPOS=vertex;</span><br><span class="line">                <span class="keyword">return</span> o;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="function">fixed4 <span class="title">frag</span> <span class="params">(v2f i)</span> : SV_Target</span></span><br><span class="line"><span class="function">            &#123;</span></span><br><span class="line">             <span class="keyword">float</span> dispersionFactor=<span class="number">1.0f</span>;  <span class="comment">//色散增强,1为不增强</span></span><br><span class="line">             <span class="comment">//真空--&gt;玻璃 折射率 1/1.5</span></span><br><span class="line">             <span class="comment">//红绿兰折射率：1.6473 ,1.6527 ,1.6726</span></span><br><span class="line">             <span class="comment">//红绿兰三色波长相对比率  0.9967/1/1.012</span></span><br><span class="line">             <span class="comment">//假设折射以绿光为基准</span></span><br><span class="line">             float3 etaRatio=<span class="built_in">float3</span>(<span class="number">0.9967f</span>*dispersionFactor,<span class="number">1.0f</span>,<span class="number">1.012f</span>*dispersionFactor)/<span class="number">1.5f</span>;</span><br><span class="line">             <span class="comment">//基础向量变换</span></span><br><span class="line">             i.normal = <span class="built_in">UnityObjectToWorldNormal</span>(i.normal);</span><br><span class="line">             float3 worldPos = <span class="built_in">mul</span>(unity_ObjectToWorld, i.objectPOS).xyz;</span><br><span class="line">             float3 worldViewDir = <span class="built_in">UnityWorldSpaceViewDir</span>(worldPos);</span><br><span class="line">             i.normal=<span class="built_in">normalize</span>(i.normal);</span><br><span class="line">             <span class="comment">//反射向量</span></span><br><span class="line">             float3 reflectVec=<span class="built_in">reflect</span>(-worldViewDir,i.normal);</span><br><span class="line">             <span class="comment">//折射向量</span></span><br><span class="line">             float3 refractionVec=<span class="built_in">normalize</span>(-worldViewDir);</span><br><span class="line">             <span class="comment">//折射色散向量</span></span><br><span class="line">             float3 tRed=<span class="built_in">refract</span>(refractionVec,i.normal,etaRatio.x);</span><br><span class="line">             float3 tGreen=<span class="built_in">refract</span>(refractionVec,i.normal,etaRatio.y);</span><br><span class="line">             float3 tBlue=<span class="built_in">refract</span>(refractionVec,i.normal,etaRatio.z);</span><br><span class="line">             <span class="comment">//反射向量采样天空盒</span></span><br><span class="line">             half4 skyData = <span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, reflectVec);</span><br><span class="line">             float4 reflectedColor=<span class="built_in">float4</span>(<span class="built_in">DecodeHDR</span> (skyData, unity_SpecCube0_HDR),<span class="number">1.0f</span>);</span><br><span class="line">             <span class="comment">//折射向量采样天空盒</span></span><br><span class="line">             float4 refractedColor=<span class="number">1.0f</span>;</span><br><span class="line">             refractedColor.r=<span class="built_in">DecodeHDR</span> (<span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, tRed),unity_SpecCube0_HDR).r;</span><br><span class="line">             refractedColor.g=<span class="built_in">DecodeHDR</span> (<span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, tGreen),unity_SpecCube0_HDR).g;</span><br><span class="line">             refractedColor.b=<span class="built_in">DecodeHDR</span> (<span class="built_in">UNITY_SAMPLE_TEXCUBE</span>(unity_SpecCube0, tBlue),unity_SpecCube0_HDR).b;</span><br><span class="line">              <span class="comment">/*</span></span><br><span class="line"><span class="comment">             //动态计算菲涅尔方程计算折射比与反射比</span></span><br><span class="line"><span class="comment">             //先求入射向量与法线夹角</span></span><br><span class="line"><span class="comment">             worldViewDir=normalize(worldViewDir);</span></span><br><span class="line"><span class="comment">             float theta_i = acos(dot(i.normal.xyz,worldViewDir.xyz));</span></span><br><span class="line"><span class="comment">             float theta_t = acos(dot(-i.normal.xyz,normalize(tBlue)));</span></span><br><span class="line"><span class="comment">             //反射比R</span></span><br><span class="line"><span class="comment">             float ratio_r=pow(sin(radians(-16.88f))/sin(radians(73.1252f)),2.0f);</span></span><br><span class="line"><span class="comment">             ratio_r=(ratio_r+pow(tan(theta_t-theta_i)/tan(theta_t+theta_i),2.0f))/2.0f;</span></span><br><span class="line"><span class="comment">             float ratio_r=(sin(theta_t-theta_i)/sin(theta_t+theta_i))*(sin(theta_t-theta_i)/sin(theta_t+theta_i));</span></span><br><span class="line"><span class="comment">             //折射比T</span></span><br><span class="line"><span class="comment">             float ratio_t=1.0f-ratio_r;</span></span><br><span class="line"><span class="comment">             */</span></span><br><span class="line">             <span class="comment">//以上反射效果不好，改为以下固定值</span></span><br><span class="line">             <span class="comment">//对于普通的玻璃，反射比大约为4% https://wenku.baidu.com/view/1431cbee81c758f5f61f67ec.html</span></span><br><span class="line">             <span class="keyword">float</span> ratio_r=<span class="number">0.04f</span>;<span class="comment">//0.04f;</span></span><br><span class="line">             <span class="keyword">float</span> <span class="keyword">ratio_t</span>=<span class="number">0.83f</span>;<span class="comment">//1.0;//0.83f;</span></span><br><span class="line">             <span class="comment">//反射颜色与折射颜色按比例混合</span></span><br><span class="line">             fixed4 finalColor=refractedColor*<span class="keyword">ratio_t</span>+reflectedColor*ratio_r;</span><br><span class="line">             <span class="keyword">return</span> finalColor;</span><br><span class="line">            &#125;</span><br><span class="line">            ENDCG</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>]]></content>
+<h1 id="矩阵乘法"><a href="#矩阵乘法" class="headerlink" title="矩阵乘法"></a>矩阵乘法</h1><p>略</p>
+<hr>
+<h1 id="转置矩阵"><a href="#转置矩阵" class="headerlink" title="转置矩阵"></a>转置矩阵</h1><p>对一个矩阵的行和列进行互换，即可得到该矩阵的转置（transpose）矩阵。一个m×n矩阵的转置矩阵是一个n×m矩阵。我们将矩阵M的转置矩阵记作M<sup>T</sup>。</p>
+<p>矩阵转置有以下有用的特点：</p>
+<p>1．(A+B)<sup>T</sup>＝A<sup>T</sup>+B<sup>T</sup></p>
+<p>2．(cA)<sup>T</sup>=cA<sup>T</sup></p>
+<p>3．(AB)<sup>T</sup>=B<sup>T</sup>A<sup>T</sup></p>
+<p>4．(A<sup>T</sup>)<sup>T</sup>=A</p>
+<p>5．(A-1)<sup>T</sup>=(A<sup>T</sup>)-1</p>
+<hr>
+<h1 id="单位矩阵"><a href="#单位矩阵" class="headerlink" title="单位矩阵"></a>单位矩阵</h1><p>单位矩阵是一个正方形矩阵，它除了对角线上的元素为1外，其他元素均为0。</p>
+<hr>
+<h1 id="行列式"><a href="#行列式" class="headerlink" title="行列式"></a>行列式</h1><p>略</p>
+<hr>
+<h1 id="伴随矩阵"><a href="#伴随矩阵" class="headerlink" title="伴随矩阵"></a>伴随矩阵</h1><p>略</p>
+<hr>
+<h1 id="逆矩阵"><a href="#逆矩阵" class="headerlink" title="逆矩阵"></a>逆矩阵</h1><p>矩阵代数没定义除法运算，但是它定义了一种乘法的逆（inverse）运算。下面的列表总结了有关逆运算的要点：</p>
+<p>1．只有正方形矩阵能做逆运算；所以，当我们说求逆矩阵时是假设我们正在处理的是一个正方形矩阵。</p>
+<p>2．一个n×n矩阵M的逆矩阵仍然是一个n×n矩阵，记作M<sup>-1</sup>。</p>
+<p>3．不是所有的正方形矩阵都有逆矩阵。有逆矩阵的正方形矩阵称为可逆（invertible）矩阵，没有逆矩阵的称为单调（singular）矩阵。</p>
+<p>4．如果存在逆矩阵，则该逆矩阵是唯一的。</p>
+<p>5．将一个矩阵与它的逆矩阵相乘，其结果必定为单位矩阵：MM<sup>-1</sup>=M<sup>-1</sup>M=I。注意，矩阵与它的逆矩阵的相乘次序可以互换，这是矩阵乘法中的一个特例。</p>
+<hr>
+<h1 id="变换"><a href="#变换" class="headerlink" title="变换"></a>变换</h1><p> <i class="fas fa-link" style="color:#ffb6c1"> <a href="https://www.bilibili.com/video/BV1X7411F744?p=3">GAMES101-现代计算机图形学入门-闫令琪-Lecture 03-04</a></i></p>
+]]></content>
       <categories>
         <category>Render</category>
       </categories>
       <tags>
         <tag>Render</tag>
-        <tag>Unity</tag>
+        <tag>Fundamentals of CG</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Vector algebra in CG</title>
+    <url>/2021/09/17/DirectX11_1/</url>
+    <content><![CDATA[<h1 id="坐标系"><a href="#坐标系" class="headerlink" title="坐标系"></a>坐标系</h1><p>左手坐标系:左手大拇指指向x轴的正方向，然后朝y轴正方向弯曲四指，大拇指就会指向z轴正方向</p>
+<ul>
+<li>DirectX为左手坐标系</li>
+<li>Unity3D为左手坐标系</li>
+</ul>
+<p>右手坐标系:右手…</p>
+<ul>
+<li>OpenGL为右手坐标系</li>
+<li>Vulkan为右手坐标系</li>
+</ul>
+<hr>
+<h1 id="长度和单位向量"><a href="#长度和单位向量" class="headerlink" title="长度和单位向量"></a>长度和单位向量</h1><p>normalize:在某些应用中，我们不关心向量的长度， 只希望用向量来表示一个单纯的方向。对于这种只表示方向、不表示大小的向量，我们希望将其长度精确地设定为1。当我们想要让一个向量具有单位长度时，我们说要对该向量进行规范化。我们将向量的每个分量除以该向量的模，得到规范化向量</p>
+<center>
+
+${\bf{\hat u}} = \frac{{\bf{u}}}{{\left\| {\bf{u}} \right\|}} = \left( {\frac{x}{{\left\| {\bf{u}} \right\|}},\frac{y}{{\left\| {\bf{u}} \right\|}},\frac{z}{{\left\| {\bf{u}} \right\|}}} \right)$
+
+</center>
+其中求模公式:
+<center>
+
+$\left\| {\bf{u}} \right\| = \sqrt {{y^2} + {a^2}} = \sqrt {{y^2} + {{(\sqrt {{x^2} + {z^2}} )}^2}} = \sqrt {{x^2} + {y^2} + {z^2}} $
+</center>
+
+<p>对向量v= (−1,3,4) 进行规范化。我们计算</p>
+<center>$\left\| {\bf{v}} \right\| = \sqrt {{{( - 1)}^2} + {3^2} + {4^2}} = \sqrt {26} $</center>
+则:
+<center>
+${\bf{\hat v}} = \frac{{\bf{v}}}{{\left\| {\bf{v}} \right\|}} = \left( { - \frac{1}{{\sqrt {26} }},\frac{3}{{\sqrt {26} }}\frac{4}{{\sqrt {26} }}} \right)$
+</center>
+要验证
+${\bf{\hat v}}$
+是否为单位向量，只需计算它的长度：
+<center>
+$\left\| {{\bf{\hat v}}} \right\| = \sqrt {{{\left( { - \frac{1}{{\sqrt {26} }}} \right)}^2} + {{\left( {\frac{3}{{\sqrt {26} }}} \right)}^2} + {{\left( {\frac{4}{{\sqrt {26} }}} \right)}^2}} = \sqrt {\frac{1}{{26}} + \frac{9}{{26}} + \frac{{16}}{{26}}} = \sqrt 1 = 1$
+</center>
+
+<hr>
+<h1 id="点积"><a href="#点积" class="headerlink" title="点积"></a>点积</h1><p>设u=（ux,uy,uz），v=（vx,vy,vz），则点积定义如下：</p>
+<center>
+${\bf{u}} \cdot {\bf{v}} = {u_x}{v_x} + {u_y}{v_y} + {u_z}{v_z}$
+</center>
+使用余弦定理可以发现存在如下关系：
+<center>
+${\bf{u}} \cdot {\bf{v}} = \left\| {\bf{u}} \right\|\left\| {\bf{v}} \right\|\cos \theta $
+</center>
+
+<h3 id="点积的几何性质："><a href="#点积的几何性质：" class="headerlink" title="点积的几何性质："></a>点积的几何性质：</h3><p>1．如果u∙v=0，则u⊥v（即，向量相互垂直）。</p>
+<p>2．如果u∙v＞0，则两个向量之间的夹角θ小于90º（即，向量形成一个锐角）。</p>
+<p>3．如果u∙v＜0，则两个向量之间的夹角θ大于90º（即，向量形成一个钝角）。</p>
+<p>设u=（1, 2,3）、v=（−4, 0, −1）。求u和v之间的夹角。首先，我们要做如下计算：</p>
+<center>
+$\begin{array}{l}{\bf{u}} \cdot {\bf{v}} = (1,2,3) \cdot ( - 4,0, - 1) = - 4 - 3 = - 7\\\left\| {\bf{u}} \right\| = \sqrt {{1^2} + {2^2} + {3^3}} = \sqrt {14} \\\left\| {\bf{v}} \right\| = \sqrt {{{( - 4)}^2} + {0^2} + {{( - 1)}^2}} = \sqrt {17} \end{array}$
+</center>
+<center>
+$\begin{array}{l}\cos \theta = \frac{{{\bf{u}} \cdot {\bf{v}}}}{{\left\| {\bf{u}} \right\|\left\| {\bf{v}} \right\|}} = \frac{{ - 7}}{{\sqrt {14} \sqrt {17} }}\\\theta = {\cos ^{ - 1}}\frac{{ - 7}}{{\sqrt {14} \sqrt {17} }} \approx 117^\circ \end{array}$
+</center>
+通用投影公式:
+<center>
+${\bf{p}} = pro{j_{\bf{n}}}({\bf{v}}) = ({\bf{v}} \cdot \frac{{\bf{n}}}{{\left\| {\bf{n}} \right\|}})\frac{{\bf{n}}}{{\left\| {\bf{n}} \right\|}} = \frac{{({\bf{v}} \cdot {\bf{n}})}}{{{{\left\| {\bf{n}} \right\|}^2}}}{\bf{n}}$
+</center>
+
+<h2 id="正交化"><a href="#正交化" class="headerlink" title="正交化"></a><del>正交化</del></h2><p><del>没懂</del> 暂略</p>
+<hr>
+<h1 id="叉积"><a href="#叉积" class="headerlink" title="叉积"></a>叉积</h1><p>与点积不同，点积的计算结果是一个标量，而叉积的计算结果是一个向量；另外，叉积只能用于3D向量（2D向量没有叉积）。通过对两个3D向量u和v计算叉积，可以得到第3个向量w，该向量同时垂直于u和v。<br>设u=（ux,uy,uz），v=（vx,vy,vz），则叉积为：</p>
+<center>
+${\bf{w}} = {\bf{u}} \times {\bf{v}} = ({u_y}{v_z} - {u_z}{v_y},{u_z}{v_x} - {u_x}{v_z},{u_x}{v_y} - {u_y}{v_x})$
+</center>
+
+<h2 id="使用叉积进行正交规范化"><a href="#使用叉积进行正交规范化" class="headerlink" title="使用叉积进行正交规范化"></a><del>使用叉积进行正交规范化</del></h2><p><del>没懂</del> 暂略</p>
+<hr>
+<h1 id="点"><a href="#点" class="headerlink" title="点"></a>点</h1><p>相对于一个坐标系，我们可以使用在标准位置上的向量来表示空间中的3D位置； 我们将它称为位置向量,向量末端的位置是唯一需要关注的特性，而方向和大小都无关紧要。我们会交替使用术语“位置向量”和“点”，因为位置向量表示的就是一个点。</p>
+]]></content>
+      <categories>
+        <category>Render</category>
+      </categories>
+      <tags>
+        <tag>Render</tag>
+        <tag>Fundamentals of CG</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Vulkan初始化</title>
+    <url>/2021/09/15/Vulkan_1/</url>
+    <content><![CDATA[<h2 id="Instance"><a href="#Instance" class="headerlink" title="Instance"></a>Instance</h2><p>&emsp;&emsp;Instance可以理解与Vulkan交互的一个桥梁。创建Instance需要向驱动程序提供一些应用层信息。例如版本号，名称</p>
+<h2 id="扩展"><a href="#扩展" class="headerlink" title="扩展"></a>扩展</h2><p>&emsp;&emsp;创建Instance之前，需要指定扩展信息。扩展可以理解为插件，不同厂商支持不同vulkan中的实例创建,一般都是采用Info结构体的形式,通过填写结构体来完成实例的创建</p>
+<h2 id="选择GPU物理设备并创建逻辑设备"><a href="#选择GPU物理设备并创建逻辑设备" class="headerlink" title="选择GPU物理设备并创建逻辑设备"></a>选择GPU物理设备并创建逻辑设备</h2><p>&emsp;&emsp;创建 VkInstance 后，我们需要查询系统中的显卡设备，选择一个支持我们需要的特性的设备使用,在选择物理设备后,我们需要一个逻辑设备来作为和物理设备交互的接口</p>
+<h2 id="校验层"><a href="#校验层" class="headerlink" title="校验层"></a>校验层</h2><p>&emsp;&emsp;很多很基本的错误都没有被 Vulkan 显式地处理，遇到错误程序会直接崩溃或者发生未被明确定义的行为。Vulkan 引入了校验层来解决这个问题</p>
+<p>校验层常被用来做下面的工作:</p>
+<ul>
+<li>检测参数值是否合法</li>
+<li>追踪对象的创建和清除操作，发现资源泄漏问题</li>
+<li>追踪调用来自的线程，检测是否线程安全。</li>
+<li>将 API 调用和调用的参数写入日志</li>
+<li>追踪 API 调用进行分析和回放</li>
+</ul>
+<h2 id="SwapChain"><a href="#SwapChain" class="headerlink" title="SwapChain"></a>SwapChain</h2><p>&emsp;&emsp;交换链本质上是一个包含了若干等待呈现的图像的队列,是一系列最终会展示给用户的图像的集合。</p>
+<h2 id="图像视图"><a href="#图像视图" class="headerlink" title="图像视图"></a>图像视图</h2><p>&emsp;&emsp;描述了访问图像的方式以及要访问图像的哪个部分,交换链中的每一个图像都需要为其创建图像视图对象需要为交换链中的每个图像创建对应的帧缓冲，在渲染时，渲染到对应的帧缓冲上。</p>
+<h2 id="渲染和呈现"><a href="#渲染和呈现" class="headerlink" title="渲染和呈现"></a>渲染和呈现</h2><ul>
+<li>从交换链获取一张图像</li>
+<li>对帧缓冲附着执行指令缓冲中的渲染指令</li>
+<li>返回渲染后的图像到交换链进行呈现操作<br>两种用于同步交换链事件的方式：栅栏 (fence) 和信号量 (semaphore)。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Render</category>
+      </categories>
+      <tags>
+        <tag>Render</tag>
+        <tag>vulkan</tag>
+        <tag>随笔</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>基于CUDA的光线追踪器[1]</title>
+    <url>/2021/08/15/CUDA_RayTracer_1/</url>
+    <content><![CDATA[<p>&emsp;&emsp;绝大部分的光线追踪器教程以CPU实现为主,而以GPU实现的教程甚少,对于图形学和GPU并行编程在这之前没有接触过或接触不久的初学者(比如我)来说,虽掌握了一些理论知识,但在使用代码实现的时候非常困难,该文章的主要目的为笔者的学习记录,代码中尽可能地对CUDA并行编程部分写了注释,也希望今后能对其他学习者提供一些帮助,在配置好CUDA环境的情况下可以直接运行代码<br>&emsp;&emsp;本文章中的光线追踪部分参考<a href="https://raytracing.github.io/books/RayTracingInOneWeekend.html">&lt;&lt; Ray Tracing in One Weekend &gt;&gt;</a><br>&emsp;&emsp;CUDA的基础知识则来自&lt;&lt; GPU高性能编程CUDA实战 &gt;&gt;一书<br>&emsp;&emsp;开发环境:GTX 1050 &amp;&amp; CUDA 11.4</p>
+<hr>
+<p>&emsp;&emsp;首先简单地使用CUDA渲染出一张图片</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;cuda_runtime.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;device_launch_parameters.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;cpu_bitmap.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;book.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;cuda.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DIM 256</span></span><br><span class="line"></span><br><span class="line"><span class="function">__device__ <span class="keyword">void</span> <span class="title">SetColor</span><span class="params">(<span class="keyword">int</span> x, <span class="keyword">int</span> y,<span class="keyword">int</span> &amp;ir,<span class="keyword">int</span> &amp;ig,<span class="keyword">int</span> &amp;ib)</span> </span>&#123;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">double</span> r = (<span class="keyword">double</span>)x / (DIM - <span class="number">1</span>);</span><br><span class="line">	<span class="keyword">double</span> g = (<span class="keyword">double</span>)y / (DIM - <span class="number">1</span>);</span><br><span class="line">	<span class="keyword">double</span> b = <span class="number">0.25</span>;</span><br><span class="line"></span><br><span class="line">	ir = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * r);</span><br><span class="line">	ig = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * g);</span><br><span class="line">	ib = <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(<span class="number">255.999</span> * b);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="keyword">void</span> <span class="title">kernel</span><span class="params">(<span class="keyword">unsigned</span> <span class="keyword">char</span>* ptr)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 将threadIdx/BlockIdx映射到像素位置</span></span><br><span class="line">    <span class="keyword">int</span> x = blockIdx.x;</span><br><span class="line">    <span class="keyword">int</span> y = blockIdx.y;</span><br><span class="line">	<span class="keyword">int</span> offset = x + y * gridDim.x;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">int</span> r = <span class="number">0</span>;</span><br><span class="line">	<span class="keyword">int</span> g = <span class="number">0</span>;</span><br><span class="line">	<span class="keyword">int</span> b = <span class="number">0</span>;</span><br><span class="line">	<span class="built_in">SetColor</span>(x, y, r, g, b);</span><br><span class="line"></span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">0</span>] = r;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">1</span>] = g;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">2</span>] = b;</span><br><span class="line">	ptr[offset * <span class="number">4</span> + <span class="number">3</span>] = <span class="number">255</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">DataBlock</span> &#123;</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">char</span>* dev_bitmap;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">void</span>)</span> </span>&#123;</span><br><span class="line">	DataBlock   data;</span><br><span class="line">	<span class="function">CPUBitmap <span class="title">bitmap</span><span class="params">(DIM, DIM)</span></span>;<span class="comment">//创建一个DIM*DIM大小的位图图像</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">char</span> *dev_bitmap;<span class="comment">//接下来将在GPU上执行计算 因此在代码中声明一个指针用来保存设备上数据的副本</span></span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaMalloc</span>((<span class="keyword">void</span>**)&amp;dev_bitmap,</span><br><span class="line">		bitmap.<span class="built_in">image_size</span>()));<span class="comment">//为了保存数据,需要cudaMalloc来分配内存</span></span><br><span class="line">	data.dev_bitmap = dev_bitmap;</span><br><span class="line">	<span class="function">dim3 <span class="title">grid</span><span class="params">(DIM, DIM)</span></span>;<span class="comment">//由于每个点的计算与其他点的计算都是相互独立的,</span></span><br><span class="line">						<span class="comment">//因此可以为每个需要计算的点都执行该函数的一个副本</span></span><br><span class="line">						<span class="comment">//在某些情况下使用二维索引会带来一定的帮助,显然在二维空间中计算函数值正属于这种情况</span></span><br><span class="line">						<span class="comment">//因此此处声明了一个二维的线程格</span></span><br><span class="line">	kernel &lt;&lt; &lt;grid, <span class="number">1</span> &gt;&gt; &gt; (dev_bitmap);<span class="comment">//将dim3变量grid传递给CUDA运行</span></span><br><span class="line">										<span class="comment">//之前分配的指针传递给kernel来保存计算结果</span></span><br><span class="line">	<span class="comment">//执行完kernel之后,设备上会生成计算结果,我们需要将这些结果复制回主机</span></span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaMemcpy</span>(bitmap.<span class="built_in">get_ptr</span>(), </span><br><span class="line">				dev_bitmap,</span><br><span class="line">				bitmap.<span class="built_in">image_size</span>(),</span><br><span class="line">				cudaMemcpyDeviceToHost));</span><br><span class="line">	<span class="built_in">HANDLE_ERROR</span>(<span class="built_in">cudaFree</span>(dev_bitmap));</span><br><span class="line">	bitmap.<span class="built_in">display_and_exit</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><img src="/img/CUDA/CUDA_Raytracer_1.png" alt=""></p>
+]]></content>
+      <categories>
+        <category>RayTracing</category>
+      </categories>
+      <tags>
+        <tag>CUDA</tag>
+        <tag>RayTracing</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>简述渲染管线</title>
+    <url>/2021/08/01/pipline/</url>
+    <content><![CDATA[<p>&emsp;&emsp;渲染管线主要分为三个阶段：应用程序阶段、几何阶段、光栅化阶段。</p>
+<ul>
+<li>应用程序阶段（CPU负责）：主要和CPU、内存打交道，诸如碰撞检测、场景图建立、视锥裁剪等算法在此阶段进行。在该阶段的最后，几何体数据（顶点坐标、法向量、纹理坐标等）通过数据总线传送到图形硬件。</li>
+<li>几何阶段（GPU负责）：主要负责顶点坐标变换、光照、裁剪、投影以及屏幕映射。在该阶段的最后，得到经过变换和投影之后的顶点坐标、颜色、纹理坐标。</li>
+<li>光栅化阶段（GPU负责）：基于几何阶段输出的数据，为像素配色，最终得到最终渲染的图像。</li>
+</ul>
+<hr>
+<h1 id="几何阶段"><a href="#几何阶段" class="headerlink" title="几何阶段"></a>几何阶段</h1><ol>
+<li><p>从 object space 到 world space<br>&emsp;&emsp;object space coordinate 与其他物体没有任何参照关系，注意，这个概念非常重要，它是将 object space coordinate 和 worldspace coordinate 区分开来的关键。无论在现实世界，还是在计算机的虚拟空间中，物体都必须和一个固定的坐标原点进行参照才能确定自己所在的位置，这是world space coordinate<br>的实际意义所在。<br>&emsp;&emsp;我们将一个模型导入计算机后，就应该给它一个相对于坐标原点的位置，那么这个位置就是 world space coordinate，从 object space coordinate 到world space coordinate 的变换过程由一个四阶矩阵控制，通常称之为 world matrix。<br>&emsp;&emsp;光照计算通常是在 world coordinate space（世界坐标空间）中进行的，这也符合人类的生活常识。当然，也可以在 eye coordinate space 中得到相同的光照效果，因为，在同一观察空间中物体之间的相对关系是保存不变的。<br>&emsp;&emsp;顶点法向量在模型文件中属于 object space，在 GPU 的顶点程序中必须将法向量转换到 world space 中才能使用。<br>&emsp;&emsp;如同必须将顶点坐标从 object space 转换到 world space 中一样，但两者的转换矩阵是不同的。</p>
+ <div class="note warning modern"><p>法向量从 object space 到 world space 的转换矩阵是 world matrix 的转置矩阵的逆矩阵</p>
+</div>
+</li>
+<li><p>从 world space 到 eye space<br>&emsp;&emsp;所谓 eye space，即以 camera（视点或相机）为原点，由视线方向、视角和远近平面，共同组成一个梯形体的三维空间，称之为 viewing frustum（视锥）。</p>
+</li>
+<li><p>从 eye space 到 project and clip space<br>&emsp;&emsp;一旦顶点坐标被转换到 eye space 中，就需要判断哪些点是视点可见的。位于 viewing frustum 梯形体以内的顶点，被认定为可见，而超出这个梯形体之外的场景数据，会被视点去除（Frustum Culling，也称之为视锥裁剪）。这一步通常称之为“clip（裁剪）”，识别指定区域内或区域外的图形部分的过程称之为裁剪算法。</p>
+</li>
+<li><p>Primitive Assembly &amp;&amp; Triangle setup</p>
+<ul>
+<li>Primitive Assembly<br>&emsp;&emsp;图元装配即将顶点根据primitive（原始的连接关系）,还原出网格结构。网格由顶点和索引组成，在之前的流水线中是对顶点的处理，在这个阶段是根据索引将顶点链接在一起，组成线、面单元。之后就是对超出屏幕外的三角形进行裁剪，想象一下：一个三角形其中一个顶点在画面外，另外两个顶点在画面内，这是我们在屏幕上看到的就是一个四边形。然后将该四边形切成两个小的三角形。</li>
+<li>Triangle Setup<br>&emsp;&emsp;处理三角形的过程被称为 Triangle  Setup。到目前位置，我们得到了一堆在屏幕坐标上的三角面片，这些面片是用于做光栅化的（Rasterizing）。</li>
+</ul>
+</li>
+</ol>
+<h1 id="光栅化阶段"><a href="#光栅化阶段" class="headerlink" title="光栅化阶段"></a>光栅化阶段</h1><ul>
+<li>Rasterization<br>&emsp;&emsp;光栅化是将一个图元转变为一个二维图像的过程。二维图像上每个点都包含了颜色、深度和纹理数据。将该点和相关信息叫做一个片元（fragment）。光栅化的目的，是找出一个几何单元（比如三角形）所覆盖的像素。</li>
+<li>Pixel Operation<br>&emsp;&emsp;Pixel operation 又称为 Raster Operation，其目的是计算出每个像素的颜色值。Pixel operation包含以下几个作用：<ol>
+<li>消除遮挡面；</li>
+<li>Texture operation，纹理操作，也就是根据像素的纹理坐标，查询对应的纹理值；</li>
+<li>Blending 混色，根据目前已经画好的颜色，与正在计算的颜色的透明度（Alpha），混合为两种颜色，作为新的颜色输出。通常称之为 alpha 混合技术。 当在屏幕上绘制某个物体时，与每个像素都相关联的哟一个 RGB 颜色值和一个 Z 缓冲器深度值，另外一个称为是 alpha 值，可以根据需要生成并存储，用来描述给定像素处的物体透明度。如果 alpha 值为 1.0，则表示物体不透明如果值为 0，表示该物体是透明的。<div class="note info modern"><p>为了在场景中绘制透明物体，通常需要对物体进行排序。首先，绘制不透明的物体；然后，在不透明物体的上方，对透明物体按照由后到前的顺序进行混合处理。如果按照任意顺序进行混合，那么会产生严重的失真。既然需要排序，那么就需要用到 z buffer。</p>
+</div></li>
+<li>Filtering，将正在算的颜色经过某种 Filtering（滤波或者滤镜）后输出。可以理解为：经过一种数学运算后变成新的颜色值。<br>该阶段之后，像素的颜色值被写入帧缓存中。</li>
+</ol>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Render</category>
+      </categories>
+      <tags>
+        <tag>Render</tag>
+        <tag>Fundamentals of CG</tag>
       </tags>
   </entry>
 </search>
